@@ -42,11 +42,19 @@ app.post('/', async (req: Request, res: Response) => {
     });
 
     if (existing) {
-      await existing.update(data);
+      const updateData: any = { ...data };
+      if (updateData.date && typeof updateData.date === 'string') {
+        updateData.date = new Date(updateData.date);
+      }
+      await existing.update(updateData);
       return res.json(existing);
     }
 
-    const attendance = await Attendance.create(data);
+    const createData: any = { ...data };
+    if (createData.date && typeof createData.date === 'string') {
+      createData.date = new Date(createData.date);
+    }
+    const attendance = await Attendance.create(createData);
     res.status(201).json(attendance);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -87,7 +95,7 @@ app.post('/bulk', async (req: Request, res: Response) => {
           ...att,
           class_id,
           marked_by,
-          date,
+          date: new Date(date),
         });
         results.push(existing);
       } else {
@@ -95,7 +103,7 @@ app.post('/bulk', async (req: Request, res: Response) => {
           school_id: (await Class.findByPk(class_id))?.get('school_id') as string,
           student_id: att.student_id,
           class_id,
-          date,
+          date: new Date(date),
           status: att.status,
           marked_by,
           remarks: att.remarks,

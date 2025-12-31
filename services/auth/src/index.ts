@@ -14,7 +14,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const app = express();
 const PORT = process.env.AUTH_SERVICE_PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = (process.env.JWT_SECRET || 'your-secret-key') as string;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 app.use(express.json());
@@ -54,16 +54,13 @@ app.post('/login', async (req: Request, res: Response) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      {
-        id: staff.get('id'),
-        school_id: staff.get('school_id'),
-        email: staff.get('email'),
-        role: staff.get('designation'),
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    const payload = {
+      id: String(staff.get('id')),
+      school_id: String(staff.get('school_id')),
+      email: String(staff.get('email')),
+      role: String(staff.get('designation')),
+    };
+    const token = jwt.sign(payload as object, JWT_SECRET as string, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions);
 
     res.json({
       token,

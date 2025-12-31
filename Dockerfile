@@ -35,14 +35,52 @@ COPY shared ./shared
 COPY services ./services
 
 # Build shared package first (needed by services)
-RUN cd shared && npm run build
+RUN echo "Building shared package..." && \
+    cd shared && \
+    npm run build && \
+    echo "✓ Shared package built successfully" && \
+    cd ..
 
-# Build all services
-RUN for dir in services/*/; do \
+# Build all services with error handling
+RUN echo "Building all services..." && \
+    services_built=0 && \
+    for dir in services/*/; do \
       if [ -f "$dir/package.json" ] && [ -f "$dir/tsconfig.json" ]; then \
-        cd "$dir" && npm run build && cd ../..; \
+        service_name=$(basename "$dir") && \
+        echo "Building $service_name..." && \
+        cd "$dir" && \
+        if npm run build; then \
+          if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then \
+            echo "ERROR: $service_name build failed - no dist directory or empty" && \
+            exit 1; \
+          fi && \
+          echo "✓ $service_name built successfully" && \
+          services_built=$((services_built + 1)); \
+        else \
+          echo "ERROR: $service_name build failed with exit code $?" && \
+          exit 1; \
+        fi && \
+        cd ../..; \
+      else \
+        echo "⚠ Skipping $dir (missing package.json or tsconfig.json)"; \
       fi; \
-    done
+    done && \
+    echo "✓ All $services_built services built successfully" && \
+    echo "Verifying build outputs..." && \
+    for dir in services/*/; do \
+      if [ -f "$dir/package.json" ] && [ -f "$dir/tsconfig.json" ]; then \
+        service_name=$(basename "$dir") && \
+        if [ ! -d "$dir/dist" ]; then \
+          echo "ERROR: $service_name dist directory missing!" && \
+          exit 1; \
+        fi && \
+        if [ -z "$(ls -A "$dir/dist" 2>/dev/null)" ]; then \
+          echo "ERROR: $service_name dist directory is empty!" && \
+          exit 1; \
+        fi; \
+      fi; \
+    done && \
+    echo "✓ All build outputs verified"
 
 # Production stage
 FROM node:18-alpine AS production
@@ -53,11 +91,28 @@ WORKDIR /app
 COPY --from=base /app/package*.json ./
 COPY --from=base /app/node_modules ./node_modules
 
-# Copy built shared package
+# Copy built shared package (including dist)
 COPY --from=base /app/shared ./shared
 
-# Copy built services
+# Copy built services (including dist directories)
 COPY --from=base /app/services ./services
+
+# Verify all dist directories exist
+RUN echo "Verifying production build..." && \
+    echo "Shared package:" && \
+    ls -la shared/dist/ 2>/dev/null || echo "⚠ Shared dist missing" && \
+    for dir in services/*/; do \
+      if [ -f "$dir/package.json" ]; then \
+        service_name=$(basename "$dir") && \
+        if [ -d "$dir/dist" ] && [ -n "$(ls -A "$dir/dist" 2>/dev/null)" ]; then \
+          echo "✓ $service_name: dist exists"; \
+        else \
+          echo "✗ $service_name: dist missing or empty!" && \
+          exit 1; \
+        fi; \
+      fi; \
+    done && \
+    echo "✓ Production build verified"
 
 # Copy startup script
 COPY railway-start.sh ./

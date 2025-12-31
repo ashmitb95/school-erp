@@ -51,7 +51,6 @@ app.register(httpProxy, {
   prefix: '/api/auth',
   rewritePrefix: '/',
   http2: false,
-  timeout: 30000,
 });
 
 // Protected routes (require authentication)
@@ -80,7 +79,6 @@ app.register(async (fastify) => {
     prefix: '/api/student',
     rewritePrefix: '/',
     http2: false,
-    timeout: 30000,
   });
 
   fastify.register(httpProxy, {
@@ -88,7 +86,6 @@ app.register(async (fastify) => {
     prefix: '/api/fees',
     rewritePrefix: '/',
     http2: false,
-    timeout: 30000,
   });
 
   fastify.register(httpProxy, {
@@ -96,7 +93,6 @@ app.register(async (fastify) => {
     prefix: '/api/attendance',
     rewritePrefix: '/',
     http2: false,
-    timeout: 30000,
   });
 
   fastify.register(httpProxy, {
@@ -104,7 +100,6 @@ app.register(async (fastify) => {
     prefix: '/api/exam',
     rewritePrefix: '/',
     http2: false,
-    timeout: 30000,
   });
 
   fastify.register(httpProxy, {
@@ -112,7 +107,6 @@ app.register(async (fastify) => {
     prefix: '/api/ai',
     rewritePrefix: '/',
     http2: false,
-    timeout: 60000, // Longer timeout for AI queries
   });
 
   fastify.register(httpProxy, {
@@ -120,7 +114,6 @@ app.register(async (fastify) => {
     prefix: '/api/management',
     rewritePrefix: '/',
     http2: false,
-    timeout: 30000,
   });
 });
 

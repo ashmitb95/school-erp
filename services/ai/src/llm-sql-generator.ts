@@ -59,7 +59,7 @@ export class LLMSQLGenerator {
   /**
    * Fetch example values from database to help LLM understand actual data
    */
-  private async getExampleValues(): Promise<Record<string, any>> {
+  async getExampleValues(): Promise<Record<string, any>> {
     const cacheKey = 'examples';
     const cached = this.exampleCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
@@ -428,7 +428,7 @@ Then generate the SQL query:`;
   /**
    * Call LLM API to generate SQL
    */
-  private async callLLM(prompt: string): Promise<string> {
+  async callLLM(prompt: string): Promise<string> {
     if (!this.apiKey && !this.apiUrl.includes('localhost')) {
       throw new Error('LLM API key not configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or LLM_API_URL');
     }

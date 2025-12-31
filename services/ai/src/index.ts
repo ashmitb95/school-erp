@@ -27,7 +27,7 @@ function sendSSE(res: Response, event: string, data: any) {
   });
   res.write(`event: ${event}\n`);
   res.write(`data: ${dataStr}\n\n`);
-  res.flush?.();
+  // Note: res.flush() is not available in Express Response, but SSE works without it
 }
 
 // Load .env from project root

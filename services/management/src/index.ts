@@ -128,7 +128,8 @@ app.get('/staff/:id', async (req: Request, res: Response) => {
 app.post('/staff', async (req: Request, res: Response) => {
   try {
     const data = createStaffSchema.parse(req.body);
-    const staff = await Staff.create(data);
+    const staffData: any = { ...data, is_active: (data as any).is_active ?? true };
+    const staff = await Staff.create(staffData);
     res.status(201).json(staff);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -289,7 +290,8 @@ app.get('/classes/:id', async (req: Request, res: Response) => {
 app.post('/classes', async (req: Request, res: Response) => {
   try {
     const data = createClassSchema.parse(req.body);
-    const cls = await Class.create(data);
+    const classData: any = { ...data, is_active: (data as any).is_active ?? true, section: (data as any).section ?? null };
+    const cls = await Class.create(classData);
     res.status(201).json(cls);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -429,7 +431,8 @@ app.get('/subjects/:id', async (req: Request, res: Response) => {
 app.post('/subjects', async (req: Request, res: Response) => {
   try {
     const data = createSubjectSchema.parse(req.body);
-    const subject = await Subject.create(data);
+    const subjectData: any = { ...data, is_active: (data as any).is_active ?? true };
+    const subject = await Subject.create(subjectData);
     res.status(201).json(subject);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -590,7 +593,8 @@ app.get('/timetables/class/:classId', async (req: Request, res: Response) => {
 app.post('/timetables', async (req: Request, res: Response) => {
   try {
     const data = createTimetableSchema.parse(req.body);
-    const timetable = await Timetable.create(data);
+    const timetableData: any = { ...data, is_active: (data as any).is_active ?? true };
+    const timetable = await Timetable.create(timetableData);
     res.status(201).json(timetable);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -757,7 +761,8 @@ app.get('/transport-routes/:id', async (req: Request, res: Response) => {
 app.post('/transport-routes', async (req: Request, res: Response) => {
   try {
     const data = createTransportRouteSchema.parse(req.body);
-    const route = await TransportRoute.create(data);
+    const routeData: any = { ...data, is_active: (data as any).is_active ?? true };
+    const route = await TransportRoute.create(routeData);
     res.status(201).json(route);
   } catch (error: any) {
     if (error instanceof z.ZodError) {

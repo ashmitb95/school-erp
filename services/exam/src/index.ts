@@ -96,7 +96,16 @@ app.post('/', async (req: Request, res: Response) => {
   try {
     const data = createExamSchema.parse(req.body);
 
-    const exam = await Exam.create(data);
+    // Convert date strings to Date objects
+    const examData: any = { ...data };
+    if (examData.start_date && typeof examData.start_date === 'string') {
+      examData.start_date = new Date(examData.start_date);
+    }
+    if (examData.end_date && typeof examData.end_date === 'string') {
+      examData.end_date = new Date(examData.end_date);
+    }
+
+    const exam = await Exam.create(examData);
 
     res.status(201).json(exam);
   } catch (error: any) {

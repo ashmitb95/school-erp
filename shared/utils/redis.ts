@@ -28,7 +28,7 @@ redisClient.on('connect', () => {
 });
 
 // Lazy connection - connect only when needed
-let connectionPromise: Promise<void> | null = null;
+let connectionPromise: Promise<any> | null = null;
 
 export const ensureConnected = async (): Promise<void> => {
   if (redisClient.isOpen) {
@@ -36,7 +36,8 @@ export const ensureConnected = async (): Promise<void> => {
   }
   
   if (connectionPromise) {
-    return connectionPromise;
+    await connectionPromise;
+    return;
   }
   
   connectionPromise = redisClient.connect().catch((err) => {
@@ -45,7 +46,7 @@ export const ensureConnected = async (): Promise<void> => {
     throw err;
   });
   
-  return connectionPromise;
+  await connectionPromise;
 };
 
 // Safe Redis operations wrapper - returns null if Redis is unavailable

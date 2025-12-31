@@ -83,7 +83,15 @@ app.post('/', async (req: Request, res: Response) => {
   try {
     const data = createFeeSchema.parse(req.body);
 
-    const fee = await Fee.create(data);
+    const feeData: any = {
+      ...data,
+      status: (data as any).status || 'pending',
+    };
+    if (feeData.due_date && typeof feeData.due_date === 'string') {
+      feeData.due_date = new Date(feeData.due_date);
+    }
+
+    const fee = await Fee.create(feeData);
 
     res.status(201).json(fee);
   } catch (error: any) {
@@ -123,12 +131,12 @@ app.post('/:id/pay', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Fee not found' });
     }
 
-    const currentAmount = parseFloat(fee.get('amount') as string);
+    const currentAmount = parseFloat(String(fee.get('amount')));
     const newStatus = paid_amount >= currentAmount ? 'paid' : 'partial';
 
     await fee.update({
       status: newStatus,
-      paid_date: new Date().toISOString().split('T')[0],
+      paid_date: new Date(),
       payment_method,
       transaction_id,
     });
@@ -177,9 +185,10 @@ app.get('/summary/status-distribution', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'school_id is required' });
     }
 
+    const schoolIdStr = Array.isArray(school_id) ? school_id[0] : String(school_id);
     const fees = await Fee.findAll({
       where: {
-        school_id: school_id, // REQUIRED - always filter by school_id
+        school_id: schoolIdStr, // REQUIRED - always filter by school_id
       },
       attributes: ['status'],
     });
@@ -418,12 +427,12 @@ app.post('/:id/payment/verify', async (req: Request, res: Response) => {
 
         if (paymentResponse.data.status === 'captured' || paymentResponse.data.status === 'authorized') {
           const paidAmount = paymentResponse.data.amount / 100; // Convert from paise
-          const currentAmount = parseFloat(fee.get('amount') as string);
+          const currentAmount = parseFloat(String(fee.get('amount')));
           const newStatus = paidAmount >= currentAmount ? 'paid' : 'partial';
 
           await fee.update({
             status: newStatus,
-            paid_date: new Date().toISOString().split('T')[0],
+            paid_date: new Date(),
             payment_method: 'razorpay',
             transaction_id: payment_id,
           });
@@ -453,12 +462,12 @@ app.post('/:id/payment/verify', async (req: Request, res: Response) => {
 
       if (paymentIntentResponse.data.status === 'succeeded') {
         const paidAmount = paymentIntentResponse.data.amount / 100; // Convert from cents
-        const currentAmount = parseFloat(fee.get('amount') as string);
+        const currentAmount = parseFloat(String(fee.get('amount')));
         const newStatus = paidAmount >= currentAmount ? 'paid' : 'partial';
 
         await fee.update({
           status: newStatus,
-          paid_date: new Date().toISOString().split('T')[0],
+          paid_date: new Date(),
           payment_method: 'stripe',
           transaction_id: payment_id,
         });
@@ -588,7 +597,7 @@ app.patch('/:id/postpone', async (req: Request, res: Response) => {
     }
 
     await fee.update({
-      due_date: new_due_date,
+      due_date: new Date(new_due_date),
       remarks: reason ? `${fee.get('remarks') || ''}\n[Postponed: ${reason}]`.trim() : fee.get('remarks'),
     });
 

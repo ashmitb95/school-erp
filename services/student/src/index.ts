@@ -54,15 +54,16 @@ app.get('/', async (req: Request, res: Response) => {
     }
 
     const where: any = {
-      school_id: school_id, // REQUIRED - always filter by school_id
+      school_id: Array.isArray(school_id) ? school_id[0] : school_id, // REQUIRED - always filter by school_id
     };
-    if (class_id) where.class_id = class_id;
-    if (academic_year) where.academic_year = academic_year;
+    if (class_id) where.class_id = Array.isArray(class_id) ? class_id[0] : class_id;
+    if (academic_year) where.academic_year = Array.isArray(academic_year) ? academic_year[0] : academic_year;
     if (search) {
+      const searchStr = Array.isArray(search) ? search[0] : search;
       where[Op.or] = [
-        { first_name: { [Op.iLike]: `%${search}%` } },
-        { last_name: { [Op.iLike]: `%${search}%` } },
-        { admission_number: { [Op.iLike]: `%${search}%` } },
+        { first_name: { [Op.iLike]: `%${searchStr}%` } },
+        { last_name: { [Op.iLike]: `%${searchStr}%` } },
+        { admission_number: { [Op.iLike]: `%${searchStr}%` } },
       ];
     }
 
@@ -125,8 +126,11 @@ app.get('/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'school_id is required' });
     }
 
+    const schoolIdStr = Array.isArray(school_id) ? school_id[0] : String(school_id);
+    const idStr = Array.isArray(id) ? id[0] : String(id);
+
     // Try cache
-    const cacheKey = `student:${id}:${school_id}`;
+    const cacheKey = `student:${idStr}:${schoolIdStr}`;
     const cached = await safeRedisGet(cacheKey);
     if (cached) {
       return res.json(JSON.parse(cached));
@@ -134,8 +138,8 @@ app.get('/:id', async (req: Request, res: Response) => {
 
           const student = await Student.findOne({
             where: {
-              id: id,
-              school_id: school_id, // REQUIRED - always filter by school_id
+              id: idStr,
+              school_id: schoolIdStr, // REQUIRED - always filter by school_id
             },
             include: [
               { model: Class, as: 'class' },
@@ -168,7 +172,13 @@ app.post('/', async (req: Request, res: Response) => {
   try {
     const data = createStudentSchema.parse(req.body);
 
-    const student = await Student.create(data);
+    // Ensure required fields are set
+    const studentData: any = {
+      ...data,
+      is_active: (data as any).is_active ?? true,
+    };
+
+    const student = await Student.create(studentData);
 
     // Invalidate cache
     await safeRedisDel(`students:*`);
@@ -196,9 +206,11 @@ app.put('/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'school_id is required' });
     }
 
+    const idStr = Array.isArray(id) ? id[0] : String(id);
+
     const student = await Student.findOne({
       where: {
-        id: id,
+        id: idStr,
         school_id: data.school_id, // REQUIRED - ensure student belongs to school
       },
     });
@@ -206,7 +218,16 @@ app.put('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Student not found' });
     }
 
-    await student.update(data);
+    // Convert date strings to Date objects if present
+    const updateData: any = { ...data };
+    if (updateData.date_of_birth && typeof updateData.date_of_birth === 'string') {
+      updateData.date_of_birth = new Date(updateData.date_of_birth);
+    }
+    if (updateData.admission_date && typeof updateData.admission_date === 'string') {
+      updateData.admission_date = new Date(updateData.admission_date);
+    }
+
+    await student.update(updateData);
 
     // Invalidate cache
     await safeRedisDel(`student:${id}`);
@@ -235,10 +256,13 @@ app.delete('/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'school_id is required' });
     }
 
+    const idStr = Array.isArray(id) ? id[0] : String(id);
+    const schoolIdStr = Array.isArray(school_id) ? school_id[0] : String(school_id);
+
     const student = await Student.findOne({
       where: {
-        id: id,
-        school_id: school_id, // REQUIRED - ensure student belongs to school
+        id: idStr,
+        school_id: schoolIdStr, // REQUIRED - ensure student belongs to school
       },
     });
     if (!student) {
@@ -286,7 +310,7 @@ app.get('/summary/class-distribution', async (req: Request, res: Response) => {
       ],
       attributes: ['id', 'class_id'],
       where: {
-        school_id: school_id, // REQUIRED - always filter by school_id
+        school_id: Array.isArray(school_id) ? school_id[0] : String(school_id), // REQUIRED - always filter by school_id
         is_active: true,
       },
     });
