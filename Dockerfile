@@ -7,18 +7,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install root dependencies
-RUN npm ci
-
-# Copy and build shared package first (needed by services)
+# Copy all package.json files for workspaces (needed for npm install to resolve dependencies)
 COPY shared/package.json ./shared/
 COPY shared/tsconfig.json ./shared/
-RUN cd shared && npm ci
-
-COPY shared ./shared
-RUN cd shared && npm run build
-
-# Copy all service package files
 COPY services/api-gateway/package.json ./services/api-gateway/
 COPY services/api-gateway/tsconfig.json ./services/api-gateway/
 COPY services/auth/package.json ./services/auth/
@@ -36,15 +27,15 @@ COPY services/ai/tsconfig.json ./services/ai/
 COPY services/management/package.json ./services/management/
 COPY services/management/tsconfig.json ./services/management/
 
-# Install service dependencies
-RUN for dir in services/*/; do \
-      if [ -f "$dir/package.json" ]; then \
-        cd "$dir" && npm ci && cd ../..; \
-      fi; \
-    done
+# Install all dependencies (workspaces will be installed automatically)
+RUN npm install
 
-# Copy all service source files
+# Copy all source files
+COPY shared ./shared
 COPY services ./services
+
+# Build shared package first (needed by services)
+RUN cd shared && npm run build
 
 # Build all services
 RUN for dir in services/*/; do \

@@ -7,6 +7,7 @@ import logger from './logger';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Support both REDIS_URL (Upstash) and individual env vars
+// Upstash uses token-based auth: rediss://default:[TOKEN]@[ENDPOINT]:6379
 const redisUrl = process.env.REDIS_URL;
 
 const redisClient = redisUrl
@@ -15,7 +16,7 @@ const redisClient = redisUrl
     })
   : createClient({
       url: `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`,
-      password: process.env.REDIS_PASSWORD || undefined,
+      password: process.env.REDIS_PASSWORD || process.env.REDIS_TOKEN || undefined,
     });
 
 redisClient.on('error', (err) => {
