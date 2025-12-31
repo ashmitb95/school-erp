@@ -237,7 +237,91 @@
   margin-top: var(--spacing-lg);
 }
 
-@media (max-width: 1024px) {
+/* Mobile-first responsive styles */
+/* Mobile: < 640px */
+@media (max-width: 639px) {
+  .dashboard {
+    gap: var(--spacing-md);
+  }
+
+  .header {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .subtitle {
+    font-size: 0.875rem;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .statCard {
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+  }
+
+  .statIcon {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .statValue {
+    font-size: 1.5rem;
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+  }
+
+  .chartSection {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .chartCard {
+    padding: var(--spacing-md);
+  }
+
+  .chartContainer {
+    height: 250px;
+    margin-top: var(--spacing-md);
+  }
+
+  .actionsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .actionCard {
+    padding: var(--spacing-md);
+    font-size: 0.875rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .activityItem {
+    padding: var(--spacing-sm);
+  }
+
+  .activityIcon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
+/* Tablet: 640px - 1023px */
+@media (min-width: 640px) and (max-width: 1023px) {
   .contentGrid {
     grid-template-columns: 1fr;
   }
@@ -245,15 +329,20 @@
   .chartSection {
     grid-template-columns: 1fr;
   }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-@media (max-width: 640px) {
-  .statsGrid {
-    grid-template-columns: 1fr;
+/* Desktop: >= 1024px */
+@media (min-width: 1024px) {
+  .contentGrid {
+    grid-template-columns: 2fr 1fr;
   }
 
-  .actionsGrid {
-    grid-template-columns: repeat(2, 1fr);
+  .chartSection {
+    grid-template-columns: 1fr 1fr;
   }
 }
 

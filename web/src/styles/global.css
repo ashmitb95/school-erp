@@ -86,10 +86,37 @@ body {
   min-height: 100vh;
 }
 
-/* Mobile-first responsive */
-@media (max-width: 640px) {
+/* Mobile-first responsive breakpoints */
+/* Mobile: < 640px (default) */
+/* Tablet: 640px - 1024px */
+/* Desktop: > 1024px */
+
+/* Base mobile styles (mobile-first) */
+html {
+  font-size: 14px; /* Smaller base font for mobile */
+}
+
+/* Touch targets - minimum 44x44px for mobile */
+button,
+a,
+input[type="button"],
+input[type="submit"],
+select {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Tablet styles */
+@media (min-width: 640px) {
   html {
-    font-size: 14px;
+    font-size: 15px;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  html {
+    font-size: 16px;
   }
 }
 

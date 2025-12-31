@@ -106,16 +106,94 @@
   flex-wrap: wrap;
 }
 
-@media (max-width: 640px) {
+/* Mobile-first responsive styles */
+/* Mobile: < 640px */
+@media (max-width: 639px) {
+  .container {
+    gap: var(--spacing-md);
+  }
+
   .header {
     flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .subtitle {
+    font-size: 0.875rem;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .statCard {
+    padding: var(--spacing-md);
+  }
+
+  .statValue {
+    font-size: 2rem;
+  }
+
+  .filters {
+    gap: var(--spacing-sm);
   }
 
   .dateFilters {
     flex-direction: column;
+    gap: var(--spacing-sm);
   }
 
   .dateInput {
     width: 100%;
+    min-width: 100%;
   }
+
+  .dateInput input {
+    font-size: 1rem;
+    padding: var(--spacing-md);
+    min-height: 44px;
+  }
+
+  .searchBar {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .tableCard {
+    margin: 0 calc(-1 * var(--spacing-sm));
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .tableCard :global(.ag-theme-alpine) {
+    height: 500px !important;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+  }
+
+  .pagination span {
+    font-size: 0.875rem;
+    text-align: center;
+  }
+}
+
+/* Tablet: 640px - 1023px */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Desktop: >= 1024px */
+@media (min-width: 1024px) {
+  /* Desktop styles already defined above */
 }

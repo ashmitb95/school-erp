@@ -12,9 +12,13 @@
   padding: var(--spacing-md);
   background-color: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 100;
+  box-shadow: var(--shadow-sm);
 }
 
 .menuButton {
@@ -59,6 +63,7 @@
   top: 0;
   z-index: 200;
   transition: transform var(--transition-base);
+  box-shadow: var(--shadow-lg);
 }
 
 .sidebarHeader {
@@ -146,6 +151,7 @@
   flex: 1;
   margin-left: 16rem;
   min-height: 100vh;
+  width: calc(100% - 16rem);
 }
 
 .content {
@@ -163,14 +169,17 @@
   z-index: 150;
 }
 
-/* Mobile Styles */
-@media (max-width: 768px) {
+/* Mobile-first: Mobile styles (< 640px) */
+@media (max-width: 639px) {
   .mobileHeader {
     display: flex;
   }
 
   .sidebar {
+    width: 100%;
+    max-width: 320px;
     transform: translateX(-100%);
+    box-shadow: var(--shadow-xl);
   }
 
   .sidebarOpen {
@@ -178,30 +187,109 @@
   }
 
   .closeButton {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .main {
     margin-left: 0;
+    width: 100%;
+    margin-top: 60px; /* Account for fixed mobile header */
   }
 
   .content {
     padding: var(--spacing-md);
+    width: 100%;
+    max-width: 100%;
   }
 
   .overlay {
     display: block;
   }
+
+  .logo {
+    font-size: 1.25rem;
+  }
+
+  .navItem {
+    padding: var(--spacing-md);
+    font-size: 0.9375rem;
+  }
+
+  .navItem span {
+    font-size: 0.9375rem;
+  }
+
+  .sidebarFooter {
+    padding: var(--spacing-md);
+  }
+
+  .mobileTitle {
+    font-size: 1.125rem;
+    font-weight: 700;
+    flex: 1;
+    text-align: center;
+    margin: 0 var(--spacing-sm);
+  }
+
+  .mobileUser {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .menuButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
-/* Tablet Styles */
-@media (max-width: 1024px) and (min-width: 769px) {
+/* Tablet styles (640px - 1023px) */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .mobileHeader {
+    display: none;
+  }
+
   .sidebar {
     width: 14rem;
   }
 
   .main {
     margin-left: 14rem;
+  }
+
+  .content {
+    padding: var(--spacing-lg);
+  }
+
+  .overlay {
+    display: none;
+  }
+}
+
+/* Desktop styles (>= 1024px) */
+@media (min-width: 1024px) {
+  .mobileHeader {
+    display: none;
+  }
+
+  .sidebar {
+    width: 16rem;
+  }
+
+  .main {
+    margin-left: 16rem;
+  }
+
+  .content {
+    padding: var(--spacing-xl);
+  }
+
+  .overlay {
+    display: none;
   }
 }
 

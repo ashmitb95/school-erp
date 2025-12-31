@@ -1,0 +1,33 @@
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  position: relative;
+}
+
+/* Mobile: Ensure table can scroll horizontally */
+@media (max-width: 639px) {
+  .tableWrapper {
+    margin: 0 calc(-1 * var(--spacing-sm));
+    padding: 0 var(--spacing-sm);
+  }
+
+  .tableWrapper :global(.ag-theme-alpine) {
+    min-width: 600px; /* Minimum width to ensure horizontal scroll */
+  }
+}
+
+/* Tablet: Allow some horizontal scroll if needed */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .tableWrapper {
+    overflow-x: auto;
+  }
+}
+
+/* Desktop: Full width, no scroll needed */
+@media (min-width: 1024px) {
+  .tableWrapper {
+    overflow-x: visible;
+  }
+}
+

@@ -12,6 +12,11 @@ import {
   Menu,
   X,
   LogOut,
+  Briefcase,
+  GraduationCap,
+  BookMarked,
+  Clock,
+  Bus,
 } from 'lucide-react';
 import styles from './Layout.module.css';
 import Button from '../Button/Button';
@@ -28,6 +33,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/students', icon: Users, label: 'Students' },
+    { path: '/staff', icon: Briefcase, label: 'Staff' },
+    { path: '/classes', icon: GraduationCap, label: 'Classes' },
+    { path: '/subjects', icon: BookMarked, label: 'Subjects' },
+    { path: '/timetables', icon: Clock, label: 'Timetables' },
+    { path: '/transport', icon: Bus, label: 'Transport' },
     { path: '/fees', icon: DollarSign, label: 'Fees' },
     { path: '/attendance', icon: Calendar, label: 'Attendance' },
     { path: '/exams', icon: BookOpen, label: 'Exams' },
@@ -50,11 +60,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           className={styles.menuButton}
           onClick={() => setSidebarOpen(!sidebarOpen)}
           aria-label="Toggle menu"
+          type="button"
         >
-          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+          {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
         <h1 className={styles.mobileTitle}>School ERP</h1>
-        <div className={styles.mobileUser}>{user?.name?.split(' ')[0]}</div>
+        <div className={styles.mobileUser}>{user?.name?.split(' ')[0] || 'User'}</div>
       </header>
 
       {/* Sidebar */}

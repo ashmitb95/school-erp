@@ -6,6 +6,12 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import StudentDetail from './pages/Students/StudentDetail';
+import Staff from './pages/Staff/Staff';
+import Classes from './pages/Classes/Classes';
+import ClassDetail from './pages/Classes/ClassDetail';
+import Subjects from './pages/Subjects/Subjects';
+import Timetables from './pages/Timetables/Timetables';
+import TransportRoutes from './pages/TransportRoutes/TransportRoutes';
 import Fees from './pages/Fees';
 import Attendance from './pages/Attendance';
 import Exams from './pages/Exams';
@@ -30,17 +36,23 @@ const App: React.FC = () => {
           element={
             <PrivateRoute>
               <Layout>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/students" element={<Students />} />
-                  <Route path="/students/:id" element={<StudentDetail />} />
-                  <Route path="/fees" element={<Fees />} />
-                  <Route path="/attendance" element={<Attendance />} />
-                  <Route path="/exams" element={<Exams />} />
-                  <Route path="/exams/:id" element={<ExamDetail />} />
-                  <Route path="/ai" element={<AIChat />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Routes>
+                      <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/students" element={<Students />} />
+                        <Route path="/students/:id" element={<StudentDetail />} />
+                        <Route path="/staff" element={<Staff />} />
+                        <Route path="/classes" element={<Classes />} />
+                        <Route path="/classes/:id" element={<ClassDetail />} />
+                        <Route path="/subjects" element={<Subjects />} />
+                        <Route path="/timetables" element={<Timetables />} />
+                        <Route path="/transport" element={<TransportRoutes />} />
+                        <Route path="/fees" element={<Fees />} />
+                        <Route path="/attendance" element={<Attendance />} />
+                        <Route path="/exams" element={<Exams />} />
+                        <Route path="/exams/:id" element={<ExamDetail />} />
+                        <Route path="/ai" element={<AIChat />} />
+                        <Route path="/settings" element={<Settings />} />
+                      </Routes>
               </Layout>
             </PrivateRoute>
           }

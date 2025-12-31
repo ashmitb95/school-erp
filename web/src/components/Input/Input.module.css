@@ -31,6 +31,16 @@
   border-radius: var(--radius-md);
   transition: all var(--transition-base);
   outline: none;
+  min-height: 44px; /* Minimum touch target size for mobile */
+}
+
+/* Mobile: Ensure proper sizing */
+@media (max-width: 639px) {
+  .input {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: var(--spacing-md);
+    min-height: 44px;
+  }
 }
 
 .input:focus {

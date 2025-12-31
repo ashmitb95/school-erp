@@ -70,19 +70,42 @@
 .sm {
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: 0.875rem;
-  min-height: 2rem;
+  min-height: 2.5rem; /* Increased for better touch target */
 }
 
 .md {
   padding: var(--spacing-md) var(--spacing-lg);
   font-size: 1rem;
-  min-height: 2.5rem;
+  min-height: 2.75rem; /* Increased for better touch target */
 }
 
 .lg {
   padding: var(--spacing-lg) var(--spacing-xl);
   font-size: 1.125rem;
-  min-height: 3rem;
+  min-height: 3.25rem; /* Increased for better touch target */
+}
+
+/* Mobile: Ensure minimum touch target size */
+@media (max-width: 639px) {
+  .button {
+    min-height: 44px; /* iOS/Android recommended minimum */
+    min-width: 44px;
+  }
+
+  .sm {
+    padding: var(--spacing-md) var(--spacing-lg);
+    min-height: 44px;
+  }
+
+  .md {
+    padding: var(--spacing-md) var(--spacing-lg);
+    min-height: 44px;
+  }
+
+  .lg {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    min-height: 48px;
+  }
 }
 
 .fullWidth {
