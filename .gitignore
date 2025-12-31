@@ -1,0 +1,26 @@
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+.nyc_output/
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.pid
+*.seed
+*.pid.lock
+
+# Database
+*.sqlite
+*.db
+
+# Docker
+docker-compose.override.yml
+
+
