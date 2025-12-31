@@ -11,6 +11,7 @@ import Input from '../../components/Input/Input';
 import Button from '../../components/Button/Button';
 import Card from '../../components/Card/Card';
 import TableWrapper from '../../components/TableWrapper/TableWrapper';
+import TableSkeleton from '../../components/TableSkeleton/TableSkeleton';
 import styles from './TransportRoutes.module.css';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -369,18 +370,28 @@ const TransportRoutes: React.FC = () => {
                 <Card className={styles.tableCard}>
                     <h2 className={styles.sectionTitle}>All Routes</h2>
                     <TableWrapper>
-                        <div className="ag-theme-alpine" style={{ height: '500px', width: '100%' }}>
-                            <AgGridReact
-                                rowData={data?.data || []}
-                                columnDefs={columnDefs}
-                                defaultColDef={defaultColDef}
-                                pagination={false}
-                                animateRows={true}
-                                enableCellTextSelection={true}
-                                suppressCellFocus={true}
-                                getRowId={(params) => params.data.id}
-                            />
-                        </div>
+                        {isLoading ? (
+                            <TableSkeleton rows={10} columns={7} />
+                        ) : (
+                            <div className="ag-theme-alpine" style={{ height: '500px', width: '100%' }}>
+                                <AgGridReact
+                                    rowData={data?.data || []}
+                                    columnDefs={columnDefs}
+                                    defaultColDef={defaultColDef}
+                                    pagination={false}
+                                    loading={false}
+                                    animateRows={true}
+                                    enableCellTextSelection={true}
+                                    suppressCellFocus={true}
+                                    getRowId={(params) => params.data.id}
+                                    noRowsOverlayComponent={() => (
+                                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                            No routes found
+                                        </div>
+                                    )}
+                                />
+                            </div>
+                        )}
                     </TableWrapper>
                 </Card>
             ) : routeDetail && routeCoordinates ? (

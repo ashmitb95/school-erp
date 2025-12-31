@@ -31,6 +31,8 @@ interface StudentAttributes {
   city: string;
   state: string;
   pincode: string;
+  latitude?: number;
+  longitude?: number;
   transport_route_id?: string;
   hostel_room?: string;
   medical_conditions?: string;
@@ -75,6 +77,8 @@ class Student extends Model<StudentAttributes, StudentCreationAttributes> implem
   public city!: string;
   public state!: string;
   public pincode!: string;
+  public latitude?: number;
+  public longitude?: number;
   public transport_route_id?: string;
   public hostel_room?: string;
   public medical_conditions?: string;
@@ -231,6 +235,16 @@ Student.init(
       type: DataTypes.STRING(10),
       allowNull: false,
     },
+    latitude: {
+      type: DataTypes.DECIMAL(10, 8),
+      allowNull: true,
+      comment: 'Geographic latitude for transport route mapping',
+    },
+    longitude: {
+      type: DataTypes.DECIMAL(11, 8),
+      allowNull: true,
+      comment: 'Geographic longitude for transport route mapping',
+    },
     transport_route_id: {
       type: DataTypes.UUID,
       allowNull: true,
@@ -287,6 +301,7 @@ Student.init(
       { fields: ['is_active'] },
       { fields: ['father_phone'] },
       { fields: ['mother_phone'] },
+      { fields: ['latitude', 'longitude'] }, // Index for geospatial queries
       // Full-text search index (created separately via SQL if needed)
       // { name: 'student_name_search', fields: ['first_name', 'last_name'], using: 'gin', opClass: 'gin_trgm_ops' },
     ],

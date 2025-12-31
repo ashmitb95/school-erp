@@ -17,6 +17,7 @@ import {
   BookMarked,
   Clock,
   Bus,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import styles from './Layout.module.css';
 import Button from '../Button/Button';
@@ -38,6 +39,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/subjects', icon: BookMarked, label: 'Subjects' },
     { path: '/timetables', icon: Clock, label: 'Timetables' },
     { path: '/transport', icon: Bus, label: 'Transport' },
+    { path: '/calendar', icon: CalendarIcon, label: 'Calendar' },
     { path: '/fees', icon: DollarSign, label: 'Fees' },
     { path: '/attendance', icon: Calendar, label: 'Attendance' },
     { path: '/exams', icon: BookOpen, label: 'Exams' },

@@ -9,6 +9,8 @@ import api from '../services/api';
 import Input from '../components/Input/Input';
 import Button from '../components/Button/Button';
 import Card from '../components/Card/Card';
+import TableSkeleton from '../components/TableSkeleton/TableSkeleton';
+import { formatEnumValue, createSetFilterParams } from '../utils/enumFilters';
 import styles from './Fees.module.css';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -231,12 +233,15 @@ const Fees: React.FC = () => {
       headerName: 'Status',
       field: 'status',
       width: 120,
+      filter: 'agSetColumnFilter',
+      filterParams: createSetFilterParams('fee_status'),
       cellRenderer: (params: ICellRendererParams) => {
         const status = params.value;
         const colors: Record<string, { bg: string; color: string; icon: any }> = {
           paid: { bg: 'var(--color-success)20', color: 'var(--color-success)', icon: CheckCircle },
           pending: { bg: 'var(--color-warning)20', color: 'var(--color-warning)', icon: Clock },
           partial: { bg: 'var(--color-info)20', color: 'var(--color-info)', icon: Clock },
+          waived: { bg: 'var(--color-text-secondary)20', color: 'var(--color-text-secondary)', icon: CheckCircle },
         };
         const style = colors[status] || colors.pending;
         const Icon = style.icon;
@@ -254,10 +259,11 @@ const Fees: React.FC = () => {
             textTransform: 'capitalize',
           }}>
             <Icon size={12} />
-            {status}
+            {formatEnumValue(status)}
           </div>
         );
       },
+      valueFormatter: (params: any) => formatEnumValue(params.value),
     },
     {
       headerName: 'Paid Date',
@@ -517,19 +523,28 @@ const Fees: React.FC = () => {
       </div>
 
       <Card className={styles.tableCard}>
-        <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
-          <AgGridReact
-            rowData={data?.data || []}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            pagination={false}
-            loading={isLoading}
-            animateRows={true}
-            enableCellTextSelection={true}
-            suppressCellFocus={true}
-            getRowId={(params) => params.data.id}
-          />
-        </div>
+        {isLoading ? (
+          <TableSkeleton rows={10} columns={8} />
+        ) : (
+          <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+            <AgGridReact
+              rowData={data?.data || []}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              pagination={false}
+              loading={false}
+              animateRows={true}
+              enableCellTextSelection={true}
+              suppressCellFocus={true}
+              getRowId={(params) => params.data.id}
+              noRowsOverlayComponent={() => (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  No fees found
+                </div>
+              )}
+            />
+          </div>
+        )}
       </Card>
 
       {data?.pagination && (

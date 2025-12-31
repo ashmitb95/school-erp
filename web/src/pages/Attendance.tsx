@@ -8,6 +8,8 @@ import api from '../services/api';
 import Input from '../components/Input/Input';
 import Button from '../components/Button/Button';
 import Card from '../components/Card/Card';
+import TableSkeleton from '../components/TableSkeleton/TableSkeleton';
+import { formatEnumValue, createSetFilterParams } from '../utils/enumFilters';
 import styles from './Attendance.module.css';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -103,6 +105,8 @@ const Attendance: React.FC = () => {
       headerName: 'Status',
       field: 'status',
       width: 120,
+      filter: 'agSetColumnFilter',
+      filterParams: createSetFilterParams('status'),
       cellRenderer: (params: ICellRendererParams) => {
         const status = params.value;
         const colors: Record<string, { bg: string; color: string; icon: any }> = {
@@ -127,10 +131,11 @@ const Attendance: React.FC = () => {
             textTransform: 'capitalize',
           }}>
             <Icon size={12} />
-            {status}
+            {formatEnumValue(status)}
           </div>
         );
       },
+      valueFormatter: (params: any) => formatEnumValue(params.value),
     },
     {
       headerName: 'Remarks',
@@ -234,19 +239,28 @@ const Attendance: React.FC = () => {
       </div>
 
       <Card className={styles.tableCard}>
-        <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
-          <AgGridReact
-            rowData={data?.data || []}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            pagination={false}
-            loading={isLoading}
-            animateRows={true}
-            enableCellTextSelection={true}
-            suppressCellFocus={true}
-            getRowId={(params) => params.data.id}
-          />
-        </div>
+        {isLoading ? (
+          <TableSkeleton rows={10} columns={5} />
+        ) : (
+          <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+            <AgGridReact
+              rowData={data?.data || []}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              pagination={false}
+              loading={false}
+              animateRows={true}
+              enableCellTextSelection={true}
+              suppressCellFocus={true}
+              getRowId={(params) => params.data.id}
+              noRowsOverlayComponent={() => (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  No attendance records found
+                </div>
+              )}
+            />
+          </div>
+        )}
       </Card>
 
       {data?.pagination && (

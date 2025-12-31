@@ -46,7 +46,7 @@ const createExamResultSchema = z.object({
 app.get('/', async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
-    const { school_id, class_id, academic_year, exam_type } = req.query;
+    const { school_id, class_id, academic_year, exam_type, status } = req.query;
 
     const where: any = {};
     if (school_id) where.school_id = school_id;
@@ -56,20 +56,64 @@ app.get('/', async (req: Request, res: Response) => {
 
     const offset = (page - 1) * limit;
 
-    const { count, rows } = await Exam.findAndCountAll({
+    let exams = await Exam.findAndCountAll({
       where,
-      limit,
-      offset,
+      limit: status ? undefined : limit, // If status filter, get all then filter
+      offset: status ? 0 : offset,
       order: [['start_date', 'DESC']],
     });
 
+    // Filter by status if provided
+    if (status && (status === 'upcoming' || status === 'ongoing' || status === 'completed')) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let filteredRows = exams.rows;
+
+      if (status === 'upcoming') {
+        filteredRows = filteredRows.filter((exam: any) => {
+          const startDate = new Date(exam.start_date);
+          startDate.setHours(0, 0, 0, 0);
+          return startDate > today;
+        });
+      } else if (status === 'completed') {
+        filteredRows = filteredRows.filter((exam: any) => {
+          const endDate = new Date(exam.end_date);
+          endDate.setHours(0, 0, 0, 0);
+          return endDate < today;
+        });
+      } else if (status === 'ongoing') {
+        filteredRows = filteredRows.filter((exam: any) => {
+          const startDate = new Date(exam.start_date);
+          const endDate = new Date(exam.end_date);
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(23, 59, 59, 999);
+          return today >= startDate && today <= endDate;
+        });
+      }
+
+      // Apply pagination after filtering
+      const total = filteredRows.length;
+      const paginatedRows = filteredRows.slice(offset, offset + limit);
+
+      return res.json({
+        data: paginatedRows,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    }
+
     res.json({
-      data: rows,
+      data: exams.rows,
       pagination: {
         page,
         limit,
-        total: count,
-        totalPages: Math.ceil(count / limit),
+        total: exams.count,
+        totalPages: Math.ceil(exams.count / limit),
       },
     });
   } catch (error: any) {

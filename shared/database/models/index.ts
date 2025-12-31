@@ -14,6 +14,7 @@ import LibraryTransaction from './LibraryTransaction';
 import InventoryItem from './InventoryItem';
 import TransportRoute from './TransportRoute';
 import Notification from './Notification';
+import CalendarEvent from './CalendarEvent';
 
 // Initialize all models
 const models = {
@@ -32,6 +33,7 @@ const models = {
   InventoryItem,
   TransportRoute,
   Notification,
+  CalendarEvent,
 };
 
 // Define associations

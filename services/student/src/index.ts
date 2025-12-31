@@ -70,16 +70,19 @@ app.get('/', async (req: Request, res: Response) => {
       return res.json(JSON.parse(cached));
     }
 
-    const { count, rows } = await Student.findAndCountAll({
-      where,
-      include: [
-        { model: Class, as: 'class' },
-        { model: School, as: 'school' },
-      ],
-      limit,
-      offset,
-      order: [['created_at', 'DESC']],
-    });
+          const { count, rows } = await Student.findAndCountAll({
+            where,
+            include: [
+              { model: Class, as: 'class' },
+              { model: School, as: 'school' },
+            ],
+            attributes: {
+              include: ['latitude', 'longitude'], // Include geodata
+            },
+            limit,
+            offset,
+            order: [['created_at', 'DESC']],
+          });
 
     const result = {
       data: rows,
@@ -119,12 +122,15 @@ app.get('/:id', async (req: Request, res: Response) => {
       return res.json(JSON.parse(cached));
     }
 
-    const student = await Student.findByPk(id, {
-      include: [
-        { model: Class, as: 'class' },
-        { model: School, as: 'school' },
-      ],
-    });
+          const student = await Student.findByPk(id, {
+            include: [
+              { model: Class, as: 'class' },
+              { model: School, as: 'school' },
+            ],
+            attributes: {
+              include: ['latitude', 'longitude'], // Include geodata
+            },
+          });
 
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });

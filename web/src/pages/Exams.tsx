@@ -9,6 +9,8 @@ import api from '../services/api';
 import Input from '../components/Input/Input';
 import Button from '../components/Button/Button';
 import Card from '../components/Card/Card';
+import TableSkeleton from '../components/TableSkeleton/TableSkeleton';
+import { formatEnumValue, createSetFilterParams } from '../utils/enumFilters';
 import styles from './Exams.module.css';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -19,9 +21,10 @@ const Exams: React.FC = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [examTypeFilter, setExamTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'upcoming' | 'completed' | 'ongoing'>('all');
 
   const { data, isLoading } = useQuery(
-    ['exams', page, search, examTypeFilter],
+    ['exams', page, search, examTypeFilter, statusFilter],
     async () => {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -29,6 +32,7 @@ const Exams: React.FC = () => {
       });
       if (search) params.append('search', search);
       if (examTypeFilter !== 'all') params.append('exam_type', examTypeFilter);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
       const response = await api.get(`/exam?${params}`);
       return response.data;
     }
@@ -135,9 +139,12 @@ const Exams: React.FC = () => {
       headerName: 'Type',
       field: 'exam_type',
       width: 120,
+      filter: 'agSetColumnFilter',
+      filterParams: createSetFilterParams('exam_type'),
       cellRenderer: (params: ICellRendererParams) => (
-        <span style={{ textTransform: 'capitalize' }}>{params.value}</span>
+        <span style={{ textTransform: 'capitalize' }}>{formatEnumValue(params.value)}</span>
       ),
+      valueFormatter: (params: any) => formatEnumValue(params.value),
     },
     {
       headerName: 'Academic Year',
@@ -180,21 +187,30 @@ const Exams: React.FC = () => {
       headerName: 'Status',
       field: 'status',
       width: 120,
-      cellRenderer: (params: ICellRendererParams) => {
+      filter: 'agSetColumnFilter',
+      filterParams: createSetFilterParams('exam_status'),
+      valueGetter: (params: any) => {
         const exam = params.data;
+        if (!exam) return '';
         const today = new Date();
         const startDate = new Date(exam.start_date);
         const endDate = new Date(exam.end_date);
         
-        let status = 'upcoming';
-        let color = 'var(--color-info)';
         if (today >= startDate && today <= endDate) {
-          status = 'ongoing';
-          color = 'var(--color-warning)';
+          return 'ongoing';
         } else if (today > endDate) {
-          status = 'completed';
-          color = 'var(--color-success)';
+          return 'completed';
         }
+        return 'upcoming';
+      },
+      cellRenderer: (params: ICellRendererParams) => {
+        const status = params.value;
+        const colors: Record<string, string> = {
+          upcoming: 'var(--color-info)',
+          ongoing: 'var(--color-warning)',
+          completed: 'var(--color-success)',
+        };
+        const color = colors[status] || 'var(--color-info)';
         
         return (
           <div style={{
@@ -208,10 +224,11 @@ const Exams: React.FC = () => {
             fontSize: '0.75rem',
             textTransform: 'capitalize',
           }}>
-            {status}
+            {formatEnumValue(status)}
           </div>
         );
       },
+      valueFormatter: (params: any) => formatEnumValue(params.value),
     },
     {
       headerName: 'Actions',
@@ -324,7 +341,23 @@ const Exams: React.FC = () => {
             fullWidth
           />
         </div>
+        <div className={styles.statusFilters}>
+          <label className={styles.filterLabel}>Status:</label>
+          {['all', 'upcoming', 'ongoing', 'completed'].map((status) => (
+            <button
+              key={status}
+              onClick={() => {
+                setStatusFilter(status as 'all' | 'upcoming' | 'completed' | 'ongoing');
+                setPage(1);
+              }}
+              className={`${styles.statusFilter} ${statusFilter === status ? styles.active : ''}`}
+            >
+              {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
+            </button>
+          ))}
+        </div>
         <div className={styles.typeFilters}>
+          <label className={styles.filterLabel}>Type:</label>
           {['all', 'unit_test', 'mid_term', 'final', 'assignment'].map((type) => (
             <button
               key={type}
@@ -341,22 +374,31 @@ const Exams: React.FC = () => {
       </div>
 
       <Card className={styles.tableCard}>
-        <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
-          <AgGridReact
-            rowData={data?.data || []}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            pagination={false}
-            loading={isLoading}
-            animateRows={true}
-            enableCellTextSelection={true}
-            suppressCellFocus={true}
-            getRowId={(params) => params.data.id}
-          />
-        </div>
+        {isLoading ? (
+          <TableSkeleton rows={10} columns={8} />
+        ) : (
+          <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+            <AgGridReact
+              rowData={data?.data || []}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              pagination={false}
+              loading={false}
+              animateRows={true}
+              enableCellTextSelection={true}
+              suppressCellFocus={true}
+              getRowId={(params) => params.data.id}
+              noRowsOverlayComponent={() => (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  No exams found
+                </div>
+              )}
+            />
+          </div>
+        )}
       </Card>
 
-      {data?.pagination && (
+      {data?.pagination && !isLoading && (
         <div className={styles.pagination}>
           <Button
             variant="outline"

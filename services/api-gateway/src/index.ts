@@ -37,6 +37,7 @@ const services = {
   attendance: `http://127.0.0.1:${process.env.ATTENDANCE_SERVICE_PORT || 3004}`,
   exam: `http://127.0.0.1:${process.env.EXAM_SERVICE_PORT || 3005}`,
   ai: `http://127.0.0.1:${process.env.AI_SERVICE_PORT || 3006}`,
+  management: `http://127.0.0.1:${process.env.MANAGEMENT_SERVICE_PORT || 3007}`,
 };
 
 // Health check
@@ -112,6 +113,14 @@ app.register(async (fastify) => {
     rewritePrefix: '/',
     http2: false,
     timeout: 60000, // Longer timeout for AI queries
+  });
+
+  fastify.register(httpProxy, {
+    upstream: services.management,
+    prefix: '/api/management',
+    rewritePrefix: '/',
+    http2: false,
+    timeout: 30000,
   });
 });
 

@@ -9,6 +9,8 @@ import api from '../../services/api';
 import Input from '../../components/Input/Input';
 import Button from '../../components/Button/Button';
 import Card from '../../components/Card/Card';
+import TableSkeleton from '../../components/TableSkeleton/TableSkeleton';
+import { formatEnumValue, createSetFilterParams, isEnumField } from '../../utils/enumFilters';
 import styles from './Students.module.css';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -155,9 +157,12 @@ const Students: React.FC = () => {
       headerName: 'Gender',
       field: 'gender',
       width: 100,
+      filter: 'agSetColumnFilter',
+      filterParams: createSetFilterParams('gender'),
       cellRenderer: (params: ICellRendererParams) => (
-        <span style={{ textTransform: 'capitalize' }}>{params.value}</span>
+        <span style={{ textTransform: 'capitalize' }}>{formatEnumValue(params.value)}</span>
       ),
+      valueFormatter: (params: any) => formatEnumValue(params.value),
     },
     {
       headerName: 'Father\'s Phone',
@@ -292,21 +297,30 @@ const Students: React.FC = () => {
       </div>
 
       <Card className={styles.tableCard}>
-        <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
-          <AgGridReact
-            rowData={data?.data || []}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            pagination={false}
-            rowSelection="multiple"
-            onSelectionChanged={onSelectionChanged}
-            loading={isLoading}
-            animateRows={true}
-            enableCellTextSelection={true}
-            suppressCellFocus={true}
-            getRowId={(params) => params.data.id}
-          />
-        </div>
+        {isLoading ? (
+          <TableSkeleton rows={10} columns={7} />
+        ) : (
+          <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+            <AgGridReact
+              rowData={data?.data || []}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              pagination={false}
+              rowSelection="multiple"
+              onSelectionChanged={onSelectionChanged}
+              loading={false}
+              animateRows={true}
+              enableCellTextSelection={true}
+              suppressCellFocus={true}
+              getRowId={(params) => params.data.id}
+              noRowsOverlayComponent={() => (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  No students found
+                </div>
+              )}
+            />
+          </div>
+        )}
       </Card>
 
       {data?.pagination && (

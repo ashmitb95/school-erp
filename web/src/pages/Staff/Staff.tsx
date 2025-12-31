@@ -8,6 +8,8 @@ import Input from '../../components/Input/Input';
 import Button from '../../components/Button/Button';
 import Card from '../../components/Card/Card';
 import TableWrapper from '../../components/TableWrapper/TableWrapper';
+import TableSkeleton from '../../components/TableSkeleton/TableSkeleton';
+import { formatEnumValue, createSetFilterParams } from '../../utils/enumFilters';
 import styles from './Staff.module.css';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -71,6 +73,15 @@ const Staff: React.FC = () => {
     }
   }, [deleteMutation]);
 
+  // Get unique designations for filter
+  const uniqueDesignations = useMemo(() => {
+    const designations = new Set<string>();
+    data?.data?.forEach((staff: any) => {
+      if (staff.designation) designations.add(staff.designation);
+    });
+    return Array.from(designations).sort();
+  }, [data]);
+
   const columnDefs: ColDef[] = useMemo(() => [
     {
       headerName: 'Employee ID',
@@ -105,6 +116,10 @@ const Staff: React.FC = () => {
       headerName: 'Designation',
       field: 'designation',
       width: 150,
+      filter: 'agSetColumnFilter',
+      filterParams: {
+        values: uniqueDesignations,
+      },
       cellRenderer: (params: ICellRendererParams) => (
         <span style={{ textTransform: 'capitalize' }}>{params.value}</span>
       ),
@@ -201,7 +216,7 @@ const Staff: React.FC = () => {
         </div>
       ),
     },
-  ], [handleDelete]);
+  ], [handleDelete, uniqueDesignations]);
 
   const defaultColDef = useMemo(() => ({
     sortable: true,
@@ -209,14 +224,6 @@ const Staff: React.FC = () => {
     resizable: true,
   }), []);
 
-  // Get unique designations for filter
-  const uniqueDesignations = useMemo(() => {
-    const designations = new Set<string>();
-    data?.data?.forEach((staff: any) => {
-      if (staff.designation) designations.add(staff.designation);
-    });
-    return Array.from(designations).sort();
-  }, [data]);
 
   return (
     <div className={styles.container}>
@@ -286,19 +293,28 @@ const Staff: React.FC = () => {
 
       <Card className={styles.tableCard}>
         <TableWrapper>
-          <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
-            <AgGridReact
-            rowData={data?.data || []}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            pagination={false}
-            loading={isLoading}
-            animateRows={true}
-            enableCellTextSelection={true}
-            suppressCellFocus={true}
-            getRowId={(params) => params.data.id}
-          />
-          </div>
+          {isLoading ? (
+            <TableSkeleton rows={10} columns={8} />
+          ) : (
+            <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+              <AgGridReact
+                rowData={data?.data || []}
+                columnDefs={columnDefs}
+                defaultColDef={defaultColDef}
+                pagination={false}
+                loading={false}
+                animateRows={true}
+                enableCellTextSelection={true}
+                suppressCellFocus={true}
+                getRowId={(params) => params.data.id}
+                noRowsOverlayComponent={() => (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                    No staff members found
+                  </div>
+                )}
+              />
+            </div>
+          )}
         </TableWrapper>
       </Card>
 

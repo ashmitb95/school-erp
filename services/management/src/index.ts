@@ -1,0 +1,799 @@
+import express, { Request, Response } from 'express';
+import dotenv from 'dotenv';
+import * as path from 'path';
+import { z } from 'zod';
+import { Op } from 'sequelize';
+import { sequelize } from '../../../shared/database/config';
+import models from '../../../shared/database/models';
+import { paginationSchema } from '../../../shared/utils/validation';
+
+const { Staff, Class, Subject, Timetable, TransportRoute, Student, School, CalendarEvent } = models;
+
+// Load .env from project root
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+const app = express();
+const PORT = process.env.MANAGEMENT_SERVICE_PORT || 3007;
+
+app.use(express.json());
+
+// ==================== STAFF ENDPOINTS ====================
+
+const createStaffSchema = z.object({
+  school_id: z.string().uuid(),
+  employee_id: z.string(),
+  first_name: z.string(),
+  last_name: z.string(),
+  middle_name: z.string().optional(),
+  date_of_birth: z.string().date(),
+  gender: z.enum(['male', 'female', 'other']),
+  designation: z.string(),
+  department: z.string().optional(),
+  qualification: z.string(),
+  experience_years: z.number().int().min(0),
+  phone: z.string(),
+  email: z.string().email(),
+  address: z.string(),
+  city: z.string(),
+  state: z.string(),
+  pincode: z.string(),
+  aadhaar_number: z.string().optional(),
+  pan_number: z.string().optional(),
+  bank_account_number: z.string().optional(),
+  bank_ifsc: z.string().optional(),
+  salary: z.number().optional(),
+  joining_date: z.string().date(),
+  password: z.string().min(6).optional(),
+});
+
+// Get all staff
+app.get('/staff', async (req: Request, res: Response) => {
+  try {
+    const { page, limit } = paginationSchema.parse(req.query);
+    const { school_id, designation, department, is_active, search } = req.query;
+
+    const where: any = {};
+    if (school_id) where.school_id = school_id;
+    if (designation) where.designation = designation;
+    if (department) where.department = department;
+    if (is_active !== undefined) where.is_active = is_active === 'true';
+    if (search) {
+      where[Op.or] = [
+        { first_name: { [Op.iLike]: `%${search}%` } },
+        { last_name: { [Op.iLike]: `%${search}%` } },
+        { employee_id: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } },
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await Staff.findAndCountAll({
+      where,
+      include: [{ model: School, as: 'school', attributes: ['id', 'name'] }],
+      limit,
+      offset,
+      order: [['created_at', 'DESC']],
+    });
+
+    res.json({
+      data: rows,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        totalPages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get staff error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Get staff by ID
+app.get('/staff/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const staff = await Staff.findByPk(id, {
+      include: [
+        { model: School, as: 'school' },
+        { model: Class, as: 'classes' },
+      ],
+    });
+
+    if (!staff) {
+      return res.status(404).json({ error: 'Staff not found' });
+    }
+
+    res.json(staff);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get staff error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Create staff
+app.post('/staff', async (req: Request, res: Response) => {
+  try {
+    const data = createStaffSchema.parse(req.body);
+    const staff = await Staff.create(data);
+    res.status(201).json(staff);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Create staff error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Update staff
+app.patch('/staff/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const staff = await Staff.findByPk(id);
+
+    if (!staff) {
+      return res.status(404).json({ error: 'Staff not found' });
+    }
+
+    await staff.update(req.body);
+    res.json(staff);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Update staff error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Delete staff (soft delete)
+app.delete('/staff/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const staff = await Staff.findByPk(id);
+
+    if (!staff) {
+      return res.status(404).json({ error: 'Staff not found' });
+    }
+
+    await staff.update({ is_active: false });
+    res.json({ message: 'Staff deactivated successfully' });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Delete staff error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// ==================== CLASSES ENDPOINTS ====================
+
+const createClassSchema = z.object({
+  school_id: z.string().uuid(),
+  name: z.string(),
+  code: z.string(),
+  level: z.number().int().min(1).max(12),
+  academic_year: z.string(),
+  class_teacher_id: z.string().uuid().optional(),
+  capacity: z.number().int().positive().default(40),
+});
+
+// Get all classes
+app.get('/classes', async (req: Request, res: Response) => {
+  try {
+    const { page, limit } = paginationSchema.parse(req.query);
+    const { school_id, academic_year, is_active } = req.query;
+
+    const where: any = {};
+    if (school_id) where.school_id = school_id;
+    if (academic_year) where.academic_year = academic_year;
+    if (is_active !== undefined) where.is_active = is_active === 'true';
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await Class.findAndCountAll({
+      where,
+      include: [
+        { model: School, as: 'school', attributes: ['id', 'name'] },
+        { model: Staff, as: 'class_teacher', attributes: ['id', 'first_name', 'last_name', 'employee_id'] },
+      ],
+      limit,
+      offset,
+      order: [['level', 'ASC'], ['name', 'ASC']],
+    });
+
+    // Get student count for each class
+    const classesWithCounts = await Promise.all(
+      rows.map(async (cls: any) => {
+        const studentCount = await Student.count({
+          where: { class_id: cls.id, is_active: true },
+        });
+        return {
+          ...cls.toJSON(),
+          student_count: studentCount,
+        };
+      })
+    );
+
+    res.json({
+      data: classesWithCounts,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        totalPages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get classes error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Get class by ID
+app.get('/classes/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const cls = await Class.findByPk(id, {
+      include: [
+        { model: School, as: 'school' },
+        { model: Staff, as: 'class_teacher' },
+        { model: Student, as: 'students', where: { is_active: true }, required: false },
+      ],
+    });
+
+    if (!cls) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
+    res.json(cls);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get class error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Create class
+app.post('/classes', async (req: Request, res: Response) => {
+  try {
+    const data = createClassSchema.parse(req.body);
+    const cls = await Class.create(data);
+    res.status(201).json(cls);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Create class error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Update class
+app.patch('/classes/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const cls = await Class.findByPk(id);
+
+    if (!cls) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
+    await cls.update(req.body);
+    res.json(cls);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Update class error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Delete class (soft delete)
+app.delete('/classes/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const cls = await Class.findByPk(id);
+
+    if (!cls) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
+    await cls.update({ is_active: false });
+    res.json({ message: 'Class deactivated successfully' });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Delete class error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// ==================== SUBJECTS ENDPOINTS ====================
+
+const createSubjectSchema = z.object({
+  school_id: z.string().uuid(),
+  name: z.string(),
+  code: z.string(),
+  description: z.string().optional(),
+});
+
+// Get all subjects
+app.get('/subjects', async (req: Request, res: Response) => {
+  try {
+    const { page, limit } = paginationSchema.parse(req.query);
+    const { school_id, is_active, search } = req.query;
+
+    const where: any = {};
+    if (school_id) where.school_id = school_id;
+    if (is_active !== undefined) where.is_active = is_active === 'true';
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { code: { [Op.iLike]: `%${search}%` } },
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await Subject.findAndCountAll({
+      where,
+      include: [{ model: School, as: 'school', attributes: ['id', 'name'] }],
+      limit,
+      offset,
+      order: [['name', 'ASC']],
+    });
+
+    res.json({
+      data: rows,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        totalPages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get subjects error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Get subject by ID
+app.get('/subjects/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const subject = await Subject.findByPk(id, {
+      include: [{ model: School, as: 'school' }],
+    });
+
+    if (!subject) {
+      return res.status(404).json({ error: 'Subject not found' });
+    }
+
+    res.json(subject);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get subject error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Create subject
+app.post('/subjects', async (req: Request, res: Response) => {
+  try {
+    const data = createSubjectSchema.parse(req.body);
+    const subject = await Subject.create(data);
+    res.status(201).json(subject);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Create subject error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Update subject
+app.patch('/subjects/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const subject = await Subject.findByPk(id);
+
+    if (!subject) {
+      return res.status(404).json({ error: 'Subject not found' });
+    }
+
+    await subject.update(req.body);
+    res.json(subject);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Update subject error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Delete subject (soft delete)
+app.delete('/subjects/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const subject = await Subject.findByPk(id);
+
+    if (!subject) {
+      return res.status(404).json({ error: 'Subject not found' });
+    }
+
+    await subject.update({ is_active: false });
+    res.json({ message: 'Subject deactivated successfully' });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Delete subject error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// ==================== TIMETABLES ENDPOINTS ====================
+
+const createTimetableSchema = z.object({
+  school_id: z.string().uuid(),
+  class_id: z.string().uuid(),
+  subject_id: z.string().uuid(),
+  teacher_id: z.string().uuid(),
+  day_of_week: z.number().int().min(0).max(6),
+  period_number: z.number().int().positive(),
+  start_time: z.string(),
+  end_time: z.string(),
+  room: z.string().optional(),
+  academic_year: z.string(),
+});
+
+// Get timetables
+app.get('/timetables', async (req: Request, res: Response) => {
+  try {
+    const { class_id, teacher_id, academic_year, day_of_week } = req.query;
+
+    const where: any = {};
+    if (class_id) where.class_id = class_id;
+    if (teacher_id) where.teacher_id = teacher_id;
+    if (academic_year) where.academic_year = academic_year;
+    if (day_of_week !== undefined) where.day_of_week = parseInt(day_of_week as string);
+    where.is_active = true;
+
+    // Order by class level/name descending when no specific class is selected
+    const order: any[] = [];
+    if (!class_id) {
+      // Order by class level descending, then class name descending
+      order.push([{ model: Class, as: 'class' }, 'level', 'DESC']);
+      order.push([{ model: Class, as: 'class' }, 'name', 'DESC']);
+    }
+    // Always order by day and period
+    order.push(['day_of_week', 'ASC']);
+    order.push(['period_number', 'ASC']);
+
+    const timetables = await Timetable.findAll({
+      where,
+      include: [
+        { model: Class, as: 'class', attributes: ['id', 'name', 'code', 'level'] },
+        { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+        { model: Staff, as: 'teacher', attributes: ['id', 'first_name', 'last_name', 'employee_id'] },
+      ],
+      order,
+    });
+
+    res.json({ data: timetables });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get timetables error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Get timetable by class
+app.get('/timetables/class/:classId', async (req: Request, res: Response) => {
+  try {
+    const { classId } = req.params;
+    const { academic_year } = req.query;
+
+    const where: any = { class_id: classId, is_active: true };
+    if (academic_year) where.academic_year = academic_year;
+
+    const timetables = await Timetable.findAll({
+      where,
+      include: [
+        { model: Subject, as: 'subject' },
+        { model: Staff, as: 'teacher' },
+      ],
+      order: [['day_of_week', 'ASC'], ['period_number', 'ASC']],
+    });
+
+    res.json({ data: timetables });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get class timetable error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Create timetable
+app.post('/timetables', async (req: Request, res: Response) => {
+  try {
+    const data = createTimetableSchema.parse(req.body);
+    const timetable = await Timetable.create(data);
+    res.status(201).json(timetable);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Create timetable error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Update timetable
+app.patch('/timetables/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const timetable = await Timetable.findByPk(id);
+
+    if (!timetable) {
+      return res.status(404).json({ error: 'Timetable not found' });
+    }
+
+    await timetable.update(req.body);
+    res.json(timetable);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Update timetable error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Delete timetable
+app.delete('/timetables/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const timetable = await Timetable.findByPk(id);
+
+    if (!timetable) {
+      return res.status(404).json({ error: 'Timetable not found' });
+    }
+
+    await timetable.update({ is_active: false });
+    res.json({ message: 'Timetable deactivated successfully' });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Delete timetable error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// ==================== TRANSPORT ROUTES ENDPOINTS ====================
+
+const createTransportRouteSchema = z.object({
+  school_id: z.string().uuid(),
+  route_name: z.string(),
+  route_number: z.string(),
+  driver_name: z.string(),
+  driver_phone: z.string(),
+  vehicle_number: z.string(),
+  vehicle_type: z.string(),
+  capacity: z.number().int().positive(),
+  start_location: z.string(),
+  end_location: z.string(),
+  stops: z.array(z.string()),
+  fare_per_month: z.number().positive(),
+});
+
+// Get all transport routes
+app.get('/transport-routes', async (req: Request, res: Response) => {
+  try {
+    const { page, limit } = paginationSchema.parse(req.query);
+    const { school_id, is_active, search } = req.query;
+
+    const where: any = {};
+    if (school_id) where.school_id = school_id;
+    if (is_active !== undefined) where.is_active = is_active === 'true';
+    if (search) {
+      where[Op.or] = [
+        { route_name: { [Op.iLike]: `%${search}%` } },
+        { route_number: { [Op.iLike]: `%${search}%` } },
+        { driver_name: { [Op.iLike]: `%${search}%` } },
+        { vehicle_number: { [Op.iLike]: `%${search}%` } },
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await TransportRoute.findAndCountAll({
+      where,
+      include: [{ model: School, as: 'school', attributes: ['id', 'name'] }],
+      limit,
+      offset,
+      order: [['route_number', 'ASC']],
+    });
+
+    // Get student count for each route
+    const routesWithCounts = await Promise.all(
+      rows.map(async (route: any) => {
+        const studentCount = await Student.count({
+          where: { transport_route_id: route.id, is_active: true },
+        });
+        return {
+          ...route.toJSON(),
+          student_count: studentCount,
+        };
+      })
+    );
+
+    res.json({
+      data: routesWithCounts,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        totalPages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get transport routes error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Get transport route by ID
+app.get('/transport-routes/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const route = await TransportRoute.findByPk(id, {
+      include: [
+        { model: School, as: 'school' },
+        // Note: Student association with TransportRoute needs to be defined in Student model
+        // For now, we'll fetch students separately
+      ],
+    });
+
+    if (!route) {
+      return res.status(404).json({ error: 'Transport route not found' });
+    }
+
+    res.json(route);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get transport route error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Create transport route
+app.post('/transport-routes', async (req: Request, res: Response) => {
+  try {
+    const data = createTransportRouteSchema.parse(req.body);
+    const route = await TransportRoute.create(data);
+    res.status(201).json(route);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Create transport route error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Update transport route
+app.patch('/transport-routes/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const route = await TransportRoute.findByPk(id);
+
+    if (!route) {
+      return res.status(404).json({ error: 'Transport route not found' });
+    }
+
+    await route.update(req.body);
+    res.json(route);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Update transport route error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Delete transport route (soft delete)
+app.delete('/transport-routes/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const route = await TransportRoute.findByPk(id);
+
+    if (!route) {
+      return res.status(404).json({ error: 'Transport route not found' });
+    }
+
+    await route.update({ is_active: false });
+    res.json({ message: 'Transport route deactivated successfully' });
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Delete transport route error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Health check
+app.get('/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok', service: 'management' });
+});
+
+// Initialize database connection
+sequelize
+  .authenticate()
+  .then(() => {
+    console.log('Database connection established for management service');
+    app.listen(PORT, () => {
+      console.log(`Management service running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Database connection failed:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    process.exit(1);
+  });
+

@@ -8,6 +8,7 @@ import { ArrowLeft, BookOpen, Calendar, TrendingUp, BarChart3, PieChart, Downloa
 import api from '../../services/api';
 import Card from '../../components/Card/Card';
 import Button from '../../components/Button/Button';
+import TableSkeleton from '../../components/TableSkeleton/TableSkeleton';
 import styles from './ExamDetail.module.css';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -433,25 +434,29 @@ const ExamDetail: React.FC = () => {
 
             <Card className={styles.resultsCard}>
                 <h2 className={styles.sectionTitle}>Exam Results</h2>
-                <div className="ag-theme-alpine" style={{ height: '500px', width: '100%' }}>
-                    {resultsLoading ? (
-                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                            Loading results...
-                        </div>
-                    ) : (
+                {resultsLoading ? (
+                    <TableSkeleton rows={10} columns={6} />
+                ) : (
+                    <div className="ag-theme-alpine" style={{ height: '500px', width: '100%' }}>
                         <AgGridReact
                             rowData={results?.data || []}
                             columnDefs={columnDefs}
                             defaultColDef={defaultColDef}
                             pagination={true}
                             paginationPageSize={20}
+                            loading={false}
                             animateRows={true}
                             enableCellTextSelection={true}
                             suppressCellFocus={true}
                             getRowId={(params) => params.data.id}
+                            noRowsOverlayComponent={() => (
+                                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                    No results found
+                                </div>
+                            )}
                         />
-                    )}
-                </div>
+                    </div>
+                )}
             </Card>
         </div>
     );
