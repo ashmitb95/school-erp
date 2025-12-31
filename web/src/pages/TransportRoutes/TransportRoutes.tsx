@@ -7,6 +7,7 @@ import { Search, Plus, Eye, MapPin, Users, Bus, TrendingUp, Navigation, Loader }
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
 import Input from '../../components/Input/Input';
 import Button from '../../components/Button/Button';
 import Card from '../../components/Card/Card';
@@ -37,21 +38,26 @@ function FitBounds({ points }: { points: [number, number][] }) {
 }
 
 const TransportRoutes: React.FC = () => {
+    const { user } = useAuthStore();
+    const schoolId = user?.school_id;
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
 
     const { data, isLoading } = useQuery(
-        ['transport-routes', page, search],
+        ['transport-routes', schoolId, page, search],
         async () => {
+            if (!schoolId) return { data: [], pagination: { total: 0 } };
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: '50',
+                school_id: schoolId,
             });
             if (search) params.append('search', search);
             const response = await api.get(`/management/transport-routes?${params}`);
             return response.data;
-        }
+        },
+        { enabled: !!schoolId }
     );
 
     const { data: routeDetail } = useQuery(
@@ -301,18 +307,37 @@ const TransportRoutes: React.FC = () => {
         {
             headerName: 'Actions',
             field: 'actions',
-            width: 120,
+            width: 60,
             pinned: 'right',
             cellRenderer: (params: ICellRendererParams) => (
-                <Button
-                    size="sm"
-                    variant="outline"
+                <button
                     onClick={() => setSelectedRoute(params.data.id)}
-                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}
+                    style={{
+                        padding: '0.375rem',
+                        border: '1px solid var(--color-border)',
+                        background: 'transparent',
+                        color: 'var(--color-text-secondary)',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--color-primary)';
+                        e.currentTarget.style.color = 'var(--color-primary)';
+                        e.currentTarget.style.backgroundColor = 'var(--color-primary)10';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--color-border)';
+                        e.currentTarget.style.color = 'var(--color-text-secondary)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                    title="View Map"
                 >
-                    <Eye size={14} style={{ marginRight: '0.25rem' }} />
-                    View Map
-                </Button>
+                    <Eye size={16} strokeWidth={1.5} />
+                </button>
             ),
         },
     ], []);
@@ -331,7 +356,7 @@ const TransportRoutes: React.FC = () => {
                     <p className={styles.subtitle}>Manage bus routes and student pickup points</p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    <Button variant="secondary">Export CSV</Button>
+                    <Button variant="secondary" style={{ display: 'none' }}>Export CSV</Button>
                     <Button icon={<Plus size={18} />}>Add Route</Button>
                 </div>
             </div>

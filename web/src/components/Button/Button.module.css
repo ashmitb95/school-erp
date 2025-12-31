@@ -21,7 +21,7 @@
 /* Variants */
 .primary {
   background-color: var(--color-primary);
-  color: white;
+  color: var(--parchment);
 }
 
 .primary:hover:not(:disabled) {
@@ -30,11 +30,11 @@
 
 .secondary {
   background-color: var(--color-secondary);
-  color: white;
+  color: var(--parchment);
 }
 
 .secondary:hover:not(:disabled) {
-  opacity: 0.9;
+  background-color: var(--color-primary);
 }
 
 .outline {
@@ -45,7 +45,7 @@
 
 .outline:hover:not(:disabled) {
   background-color: var(--color-primary);
-  color: white;
+  color: var(--parchment);
 }
 
 .ghost {
@@ -59,11 +59,11 @@
 
 .danger {
   background-color: var(--color-error);
-  color: white;
+  color: var(--parchment);
 }
 
 .danger:hover:not(:disabled) {
-  opacity: 0.9;
+  background-color: var(--color-primary-dark);
 }
 
 /* Sizes */

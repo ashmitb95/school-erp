@@ -120,12 +120,16 @@ app.post('/chat/stream', async (req: Request, res: Response) => {
           console.log(`[AI Service] Data event sent with direct data`);
         }
         
-        // Step 6: Format response using LLM (include conversation history)
+        // Step 6: Analyze data for calculations (ratios, percentages, etc.)
+        sendSSE(res, 'thinking', { message: 'Analyzing results and calculating insights...' });
+        const analysis = sqlGenerator.analyzeData(message, data);
+        
+        // Step 7: Format response using LLM (include conversation history)
         sendSSE(res, 'thinking', { message: 'Formatting results...' });
         const formattedResponse = sqlGenerator.formatResponse(message, data);
         
         // Stream the formatted response
-        const formattingPrompt = `Format this query result in a friendly, conversational way: ${formattedResponse || `Found ${count} results`}. Keep it concise and helpful.`;
+        const formattingPrompt = `Format this query result in a friendly, conversational way: ${formattedResponse || `Found ${count} results`}. ${analysis.analysis ? `Important: The user asked for a calculation. Include this analysis: ${analysis.analysis}` : ''} Keep it concise and helpful.`;
         
         try {
           await sqlGenerator.callLLMStream(formattingPrompt, (chunk: string) => {
@@ -133,7 +137,10 @@ app.post('/chat/stream', async (req: Request, res: Response) => {
           });
         } catch (e) {
           // Fallback to simple text if LLM fails
-          const responseText = formattedResponse || `Found ${count} results`;
+          let responseText = formattedResponse || `Found ${count} results`;
+          if (analysis.analysis) {
+            responseText = `${analysis.analysis}\n\n${responseText}`;
+          }
           const words = responseText.split(' ');
           for (let i = 0; i < words.length; i++) {
             await new Promise(resolve => setTimeout(resolve, 30));
@@ -232,14 +239,24 @@ app.post('/chat', async (req: Request, res: Response) => {
         });
 
         const count = data.length;
+        
+        // Analyze data for calculations
+        const analysis = sqlGenerator.analyzeData(message, data);
         const formattedResponse = sqlGenerator.formatResponse(message, data);
+        
+        // Include analysis in response if available
+        let responseText = formattedResponse || `Found ${count} results`;
+        if (analysis.analysis) {
+          responseText = `${analysis.analysis}\n\n${responseText}`;
+        }
 
         return res.json({
-          response: formattedResponse || `Found ${count} results`,
+          response: responseText,
           data: data,
           count: count,
           sql: sqlResult.sql,
-          type: 'data_query'
+          type: 'data_query',
+          insights: analysis.insights
         });
       } catch (error: any) {
         return res.json({

@@ -6,6 +6,7 @@ interface ClassAttributes {
   school_id: string;
   name: string;
   code: string;
+  section: string; // A, B, C, D, etc.
   level: number; // 1-12 for standard classes
   academic_year: string;
   class_teacher_id?: string;
@@ -22,6 +23,7 @@ class Class extends Model<ClassAttributes, ClassCreationAttributes> implements C
   public school_id!: string;
   public name!: string;
   public code!: string;
+  public section!: string;
   public level!: number;
   public academic_year!: string;
   public class_teacher_id?: string;
@@ -61,6 +63,11 @@ Class.init(
       type: DataTypes.STRING(20),
       allowNull: false,
     },
+    section: {
+      type: DataTypes.STRING(10),
+      allowNull: false,
+      defaultValue: 'A',
+    },
     level: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -99,9 +106,10 @@ Class.init(
     sequelize,
     tableName: 'classes',
     indexes: [
-      { fields: ['school_id', 'code', 'academic_year'], unique: true },
+      { fields: ['school_id', 'code', 'section', 'academic_year'], unique: true },
       { fields: ['academic_year'] },
       { fields: ['is_active'] },
+      { fields: ['section'] },
     ],
   }
 );

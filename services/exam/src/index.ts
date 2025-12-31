@@ -48,64 +48,33 @@ app.get('/', async (req: Request, res: Response) => {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, class_id, academic_year, exam_type, status } = req.query;
 
-    const where: any = {};
-    if (school_id) where.school_id = school_id;
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const where: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
+    };
     if (class_id) where.class_id = class_id;
     if (academic_year) where.academic_year = academic_year;
     if (exam_type) where.exam_type = exam_type;
+    
+    // Use the proper status column now
+    if (status) {
+      const validStatuses = ['scheduled', 'in_progress', 'completed', 'cancelled'];
+      if (validStatuses.includes(status as string)) {
+        where.status = status;
+      }
+    }
 
     const offset = (page - 1) * limit;
 
     let exams = await Exam.findAndCountAll({
       where,
-      limit: status ? undefined : limit, // If status filter, get all then filter
-      offset: status ? 0 : offset,
+      limit,
+      offset,
       order: [['start_date', 'DESC']],
     });
-
-    // Filter by status if provided
-    if (status && (status === 'upcoming' || status === 'ongoing' || status === 'completed')) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      let filteredRows = exams.rows;
-
-      if (status === 'upcoming') {
-        filteredRows = filteredRows.filter((exam: any) => {
-          const startDate = new Date(exam.start_date);
-          startDate.setHours(0, 0, 0, 0);
-          return startDate > today;
-        });
-      } else if (status === 'completed') {
-        filteredRows = filteredRows.filter((exam: any) => {
-          const endDate = new Date(exam.end_date);
-          endDate.setHours(0, 0, 0, 0);
-          return endDate < today;
-        });
-      } else if (status === 'ongoing') {
-        filteredRows = filteredRows.filter((exam: any) => {
-          const startDate = new Date(exam.start_date);
-          const endDate = new Date(exam.end_date);
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(23, 59, 59, 999);
-          return today >= startDate && today <= endDate;
-        });
-      }
-
-      // Apply pagination after filtering
-      const total = filteredRows.length;
-      const paginatedRows = filteredRows.slice(offset, offset + limit);
-
-      return res.json({
-        data: paginatedRows,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
-    }
 
     res.json({
       data: exams.rows,

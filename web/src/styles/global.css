@@ -1,23 +1,31 @@
 :root {
-  /* Base colors - can be overridden by theme */
-  --color-primary: #6366f1;
-  --color-primary-dark: #4f46e5;
-  --color-primary-light: #818cf8;
-  --color-secondary: #8b5cf6;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #3b82f6;
+  /* Color Palette */
+  --gunmetal: #474448ff;
+  --shadow-grey: #2d232eff;
+  --bone: #e0ddcfff;
+  --taupe-grey: #534b52ff;
+  --parchment: #f1f0eaff;
   
-  /* Neutral colors */
+  /* Base colors - mapped to palette for buttons and UI elements */
+  --color-primary: var(--gunmetal);
+  --color-primary-dark: var(--shadow-grey);
+  --color-primary-light: var(--taupe-grey);
+  --color-secondary: var(--taupe-grey);
+  /* Semantic colors using palette - success uses taupe-grey, error uses shadow-grey, warning uses gunmetal */
+  --color-success: var(--taupe-grey);
+  --color-warning: var(--gunmetal);
+  --color-error: var(--shadow-grey);
+  --color-info: var(--gunmetal);
+  
+  /* Neutral colors - white/light backgrounds */
   --color-bg: #ffffff;
-  --color-bg-secondary: #f8fafc;
-  --color-bg-tertiary: #f1f5f9;
-  --color-text: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-tertiary: #94a3b8;
-  --color-border: #e2e8f0;
-  --color-border-light: #f1f5f9;
+  --color-bg-secondary: #f8f9fa;
+  --color-bg-tertiary: #f1f3f5;
+  --color-text: var(--shadow-grey);
+  --color-text-secondary: var(--taupe-grey);
+  --color-text-tertiary: #6c757d;
+  --color-border: #e9ecef;
+  --color-border-light: #f8f9fa;
   
   /* Spacing */
   --spacing-xs: 0.25rem;
@@ -41,7 +49,7 @@
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   
   /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  --font-sans: 'Nunito', sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   --font-mono: 'Fira Code', 'Courier New', monospace;
   
@@ -52,20 +60,26 @@
 }
 
 [data-theme="dark"] {
-  --color-bg: #0f172a;
-  --color-bg-secondary: #1e293b;
-  --color-bg-tertiary: #334155;
-  --color-text: #f8fafc;
-  --color-text-secondary: #cbd5e1;
-  --color-text-tertiary: #94a3b8;
-  --color-border: #334155;
-  --color-border-light: #1e293b;
+  --color-bg: var(--shadow-grey);
+  --color-bg-secondary: var(--gunmetal);
+  --color-bg-tertiary: #3a3539;
+  --color-text: var(--parchment);
+  --color-text-secondary: var(--bone);
+  --color-text-tertiary: var(--taupe-grey);
+  --color-border: var(--gunmetal);
+  --color-border-light: var(--shadow-grey);
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
 html {
@@ -80,6 +94,10 @@ body {
   color: var(--color-text);
   line-height: 1.6;
   min-height: 100vh;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
@@ -147,8 +165,8 @@ select {
 
 /* Selection */
 ::selection {
-  background-color: var(--color-primary-light);
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--parchment);
 }
 
 

@@ -1,0 +1,88 @@
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  min-width: 300px;
+  max-width: 500px;
+  animation: slideIn 0.3s ease-out;
+  position: relative;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.message {
+  flex: 1;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.closeButton {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+.success {
+  border-left: 4px solid var(--color-success);
+}
+
+.success .icon {
+  color: var(--color-success);
+}
+
+.error {
+  border-left: 4px solid var(--color-error);
+}
+
+.error .icon {
+  color: var(--color-error);
+}
+
+.info {
+  border-left: 4px solid var(--color-info);
+}
+
+.info .icon {
+  color: var(--color-info);
+}
+
+.warning {
+  border-left: 4px solid var(--color-warning);
+}
+
+.warning .icon {
+  color: var(--color-warning);
+}
+

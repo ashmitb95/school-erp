@@ -130,7 +130,14 @@ This is a comprehensive, scalable ERP system designed for managing a chain of sc
 - **Design**: Mobile-first responsive design
 
 #### Pages & Features
-1. **Dashboard**: Overview with statistics, charts, and quick actions
+1. **Dashboard**: Student-centric dashboard with:
+   - At-risk students (multiple issues)
+   - Today's absentees with parent contact
+   - Pending/overdue fees tracking
+   - Low exam scores alerts
+   - Attendance visualization (present/absent/late)
+   - Upcoming student birthdays
+   - Quick actions for common tasks
 2. **Students**: Student management with search, filters, analytics, and export
 3. **Staff**: Staff management with designation filtering
 4. **Classes**: Class management with academic year filtering

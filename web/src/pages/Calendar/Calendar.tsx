@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Calendar as CalendarIcon, Plus, Edit, Trash2, Clock, MapPin, Users, BookOpen, Briefcase, Settings, X } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import api from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
 import Button from '../../components/Button/Button';
 import Card from '../../components/Card/Card';
 import Input from '../../components/Input/Input';
@@ -43,6 +44,8 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 
 const Calendar: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const schoolId = user?.school_id;
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -55,9 +58,11 @@ const Calendar: React.FC = () => {
   const calendarEnd = endOfWeek(monthEnd);
 
   const { data: eventsData, isLoading } = useQuery(
-    ['calendar-events', format(monthStart, 'yyyy-MM-dd'), format(monthEnd, 'yyyy-MM-dd'), eventTypeFilter],
+    ['calendar-events', schoolId, format(monthStart, 'yyyy-MM-dd'), format(monthEnd, 'yyyy-MM-dd'), eventTypeFilter],
     async () => {
+      if (!schoolId) return { data: [] };
       const params = new URLSearchParams({
+        school_id: schoolId,
         start_date: format(monthStart, 'yyyy-MM-dd'),
         end_date: format(monthEnd, 'yyyy-MM-dd'),
       });
@@ -111,7 +116,7 @@ const Calendar: React.FC = () => {
           <p className={styles.subtitle}>Track events, exams, and important dates</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button variant="secondary">Export</Button>
+          <Button variant="secondary" style={{ display: 'none' }}>Export</Button>
           <Button icon={<Plus size={18} />} onClick={() => setShowEventModal(true)}>
             Add Event
           </Button>

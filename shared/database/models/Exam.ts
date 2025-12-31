@@ -13,6 +13,7 @@ interface ExamAttributes {
   subject_id?: string;
   max_marks: number;
   passing_marks: number;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   is_active: boolean;
   created_at?: Date;
   updated_at?: Date;
@@ -32,6 +33,7 @@ class Exam extends Model<ExamAttributes, ExamCreationAttributes> implements Exam
   public subject_id?: string;
   public max_marks!: number;
   public passing_marks!: number;
+  public status!: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   public is_active!: boolean;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
@@ -101,6 +103,11 @@ Exam.init(
       type: DataTypes.DECIMAL(5, 2),
       allowNull: false,
     },
+    status: {
+      type: DataTypes.ENUM('scheduled', 'in_progress', 'completed', 'cancelled'),
+      allowNull: false,
+      defaultValue: 'scheduled',
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
@@ -122,6 +129,7 @@ Exam.init(
       { fields: ['class_id'] },
       { fields: ['exam_type'] },
       { fields: ['start_date', 'end_date'] },
+      { fields: ['status'] },
     ],
   }
 );

@@ -6,6 +6,9 @@ import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgChartsReact } from 'ag-charts-react';
 import { Search, Plus, Edit, Eye, Trash2, Download, Users, PieChart, BarChart3 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
+import { useToast } from '../../contexts/ToastContext';
+import { exportToCSV } from '../../utils/export';
 import Input from '../../components/Input/Input';
 import Button from '../../components/Button/Button';
 import Card from '../../components/Card/Card';
@@ -18,26 +21,33 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 const Students: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const { showSuccess, showError, confirm } = useToast();
+  const schoolId = user?.school_id;
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
 
   const { data, isLoading } = useQuery(
-    ['students', page, search],
+    ['students', schoolId, page, search],
     async () => {
+      if (!schoolId) return { data: [], pagination: { total: 0 } };
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '50',
+        school_id: schoolId,
       });
       if (search) params.append('search', search);
       const response = await api.get(`/student?${params}`);
       return response.data;
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   // Analytics query
-  const { data: analytics } = useQuery('students-analytics', async () => {
-    const response = await api.get('/student?limit=1000').catch(() => ({ data: { data: [] } }));
+  const { data: analytics } = useQuery(['students-analytics', schoolId], async () => {
+    if (!schoolId) return { total: 0, classDistribution: [], genderDistribution: [] };
+    const response = await api.get(`/student?school_id=${schoolId}&limit=1000`).catch(() => ({ data: { data: [] } }));
     const students = response.data.data || [];
 
     // Class distribution
@@ -55,7 +65,7 @@ const Students: React.FC = () => {
       classDistribution: Object.entries(classDist).map(([name, count]) => ({ name, count })),
       genderDistribution: Object.entries(genderDist).map(([gender, count]) => ({ gender, count })),
     };
-  });
+  }, { enabled: !!schoolId });
 
   const classChartOptions = useMemo(() => ({
     data: analytics?.classDistribution || [],
@@ -73,26 +83,30 @@ const Students: React.FC = () => {
   }), [analytics?.classDistribution]);
 
   const handleExport = () => {
-    const csv = [
-      ['Admission Number', 'Name', 'Class', 'Section', 'Gender', 'Father Phone', 'Academic Year'].join(','),
-      ...(data?.data || []).map((student: any) => [
-        student.admission_number,
-        `${student.first_name} ${student.middle_name || ''} ${student.last_name}`.trim(),
-        student.class?.name || 'N/A',
-        student.section || 'N/A',
-        student.gender || 'N/A',
-        student.father_phone || 'N/A',
-        student.academic_year || 'N/A',
-      ].join(',')),
-    ].join('\n');
+    try {
+      const columns = [
+        { key: 'admission_number', label: 'Admission Number' },
+        { key: 'name', label: 'Name' },
+        { key: 'class.name', label: 'Class' },
+        { key: 'section', label: 'Section' },
+        { key: 'gender', label: 'Gender' },
+        { key: 'father_phone', label: 'Father Phone' },
+        { key: 'academic_year', label: 'Academic Year' },
+      ];
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `students-export-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+      const exportData = (data?.data || []).map((student: any) => ({
+        ...student,
+        name: `${student.first_name} ${student.middle_name || ''} ${student.last_name}`.trim(),
+      }));
+
+      exportToCSV(exportData, columns, {
+        filename: `students-export-${new Date().toISOString().split('T')[0]}.csv`,
+      });
+
+      showSuccess('Students data exported successfully!');
+    } catch (error) {
+      showError('Failed to export students data');
+    }
   };
 
   const deleteMutation = useMutation(
@@ -177,43 +191,65 @@ const Students: React.FC = () => {
     {
       headerName: 'Actions',
       field: 'actions',
-      width: 150,
+      width: 100,
       pinned: 'right',
       cellRenderer: (params: ICellRendererParams) => (
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button
             onClick={() => navigate(`/students/${params.data.id}`)}
             style={{
-              padding: '0.25rem 0.5rem',
-              border: 'none',
-              background: 'var(--color-primary)',
-              color: 'white',
+              padding: '0.375rem',
+              border: '1px solid var(--color-border)',
+              background: 'transparent',
+              color: 'var(--color-text-secondary)',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.25rem',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-primary)';
+              e.currentTarget.style.color = 'var(--color-primary)';
+              e.currentTarget.style.backgroundColor = 'var(--color-primary)10';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
+              e.currentTarget.style.backgroundColor = 'transparent';
             }}
             title="View Details"
           >
-            <Eye size={14} />
+            <Eye size={16} strokeWidth={1.5} />
           </button>
           <button
             onClick={() => handleDelete(params.data.id)}
             style={{
-              padding: '0.25rem 0.5rem',
-              border: 'none',
-              background: 'var(--color-error)',
-              color: 'white',
+              padding: '0.375rem',
+              border: '1px solid var(--color-border)',
+              background: 'transparent',
+              color: 'var(--color-text-secondary)',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.25rem',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-error)';
+              e.currentTarget.style.color = 'var(--color-error)';
+              e.currentTarget.style.backgroundColor = 'var(--color-error)10';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
+              e.currentTarget.style.backgroundColor = 'transparent';
             }}
             title="Delete"
           >
-            <Trash2 size={14} />
+            <Trash2 size={16} strokeWidth={1.5} />
           </button>
         </div>
       ),
@@ -238,7 +274,7 @@ const Students: React.FC = () => {
           <p className={styles.subtitle}>Comprehensive student records and analytics</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button icon={<Download size={18} />} variant="outline" onClick={handleExport}>
+          <Button icon={<Download size={18} />} variant="outline" onClick={handleExport} style={{ display: 'none' }}>
             Export
           </Button>
           {selectedRows.length > 0 && (
@@ -246,7 +282,10 @@ const Students: React.FC = () => {
               Clear Selection ({selectedRows.length})
             </Button>
           )}
-          <Button icon={<Plus size={18} />} onClick={() => navigate('/students/new')}>
+          <Button 
+            icon={<Plus size={18} />} 
+            onClick={() => showInfo('Add Student feature coming soon!')}
+          >
             Add Student
           </Button>
         </div>

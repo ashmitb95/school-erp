@@ -4,7 +4,8 @@
   "description": "All-in-one ERP system for chain of schools in India",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm:dev:*\"",
+    "cleanup": "for port in 3000 3001 3002 3003 3004 3005 3006 3007; do lsof -ti:$port | xargs kill -9 2>/dev/null || true; done && echo '✅ Ports 3000-3007 cleaned up'",
+    "dev": "npm run cleanup && concurrently \"npm:dev:*\"",
     "dev:gateway": "cd services/api-gateway && npm run dev",
     "dev:auth": "cd services/auth && npm run dev",
     "dev:student": "cd services/student && npm run dev",
@@ -20,6 +21,8 @@
     "backfill": "ts-node --project tsconfig.json --transpile-only scripts/backfill-historical-data.ts",
     "add-geodata": "ts-node --project tsconfig.json --transpile-only scripts/add-geodata-columns.ts",
     "create-calendar-table": "ts-node --project tsconfig.json --transpile-only scripts/create-calendar-events-table.ts",
+    "add-leave-type": "ts-node --project tsconfig.json --transpile-only scripts/add-leave-type-column.ts",
+    "add-section-status": "ts-node --project tsconfig.json --transpile-only scripts/add-section-and-exam-status.ts",
     "test": "jest",
     "lint": "eslint . --ext .ts,.js"
   },

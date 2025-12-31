@@ -5,6 +5,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Search, Plus, Eye, Users, BookOpen, TrendingUp } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
 import Input from '../../components/Input/Input';
 import Button from '../../components/Button/Button';
 import Card from '../../components/Card/Card';
@@ -17,35 +18,42 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 const Classes: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const schoolId = user?.school_id;
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [academicYearFilter, setAcademicYearFilter] = useState('all');
 
   const { data, isLoading } = useQuery(
-    ['classes', page, search, academicYearFilter],
+    ['classes', schoolId, page, search, academicYearFilter],
     async () => {
+      if (!schoolId) return { data: [], pagination: { total: 0 } };
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '50',
+        school_id: schoolId,
       });
       if (search) params.append('search', search);
       if (academicYearFilter !== 'all') params.append('academic_year', academicYearFilter);
       const response = await api.get(`/management/classes?${params}`);
       return response.data;
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   const { data: classSummary } = useQuery(
-    'classSummary',
+    ['classSummary', schoolId],
     async () => {
+      if (!schoolId) return { totalClasses: 0 };
       const [totalClasses] = await Promise.all([
-        api.get('/management/classes?limit=1').catch(() => ({ data: { pagination: { total: 0 } } })),
+        api.get(`/management/classes?school_id=${schoolId}&limit=1`).catch(() => ({ data: { pagination: { total: 0 } } })),
       ]);
 
       return {
         totalClasses: totalClasses.data.pagination?.total || 0,
       };
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   const columnDefs: ColDef[] = useMemo(() => [
@@ -151,18 +159,37 @@ const Classes: React.FC = () => {
     {
       headerName: 'Actions',
       field: 'actions',
-      width: 120,
+      width: 60,
       pinned: 'right',
       cellRenderer: (params: ICellRendererParams) => (
-        <Button
-          size="sm"
-          variant="outline"
+        <button
           onClick={() => navigate(`/classes/${params.data.id}`)}
-          style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}
+          style={{
+            padding: '0.375rem',
+            border: '1px solid var(--color-border)',
+            background: 'transparent',
+            color: 'var(--color-text-secondary)',
+            borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-primary)';
+            e.currentTarget.style.color = 'var(--color-primary)';
+            e.currentTarget.style.backgroundColor = 'var(--color-primary)10';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-border)';
+            e.currentTarget.style.color = 'var(--color-text-secondary)';
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+          title="View Details"
         >
-          <Eye size={14} style={{ marginRight: '0.25rem' }} />
-          View
-        </Button>
+          <Eye size={16} strokeWidth={1.5} />
+        </button>
       ),
     },
   ], [navigate]);
@@ -190,7 +217,7 @@ const Classes: React.FC = () => {
           <p className={styles.subtitle}>Manage all classes and sections</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button variant="secondary">Export CSV</Button>
+          <Button variant="secondary" style={{ display: 'none' }}>Export CSV</Button>
           <Button icon={<Plus size={18} />}>Add Class</Button>
         </div>
       </div>

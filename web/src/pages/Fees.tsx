@@ -6,6 +6,8 @@ import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgChartsReact } from 'ag-charts-react';
 import { Search, Plus, DollarSign, CheckCircle, XCircle, Clock, Link as LinkIcon, Calendar, Send, Copy, Download, TrendingUp, BarChart3 } from 'lucide-react';
 import api from '../services/api';
+import { useAuthStore } from '../stores/authStore';
+import { useToast } from '../contexts/ToastContext';
 import Input from '../components/Input/Input';
 import Button from '../components/Button/Button';
 import Card from '../components/Card/Card';
@@ -17,6 +19,8 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 const Fees: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const schoolId = user?.school_id;
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -32,25 +36,29 @@ const Fees: React.FC = () => {
   const [postponeReason, setPostponeReason] = useState('');
 
   const { data, isLoading } = useQuery(
-    ['fees', page, search, statusFilter],
+    ['fees', schoolId, page, search, statusFilter],
     async () => {
+      if (!schoolId) return { data: [], pagination: { total: 0 } };
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '50',
+        school_id: schoolId,
       });
       if (search) params.append('search', search);
       if (statusFilter !== 'all') params.append('status', statusFilter);
       const response = await api.get(`/fees?${params}`);
       return response.data;
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   // Analytics query
-  const { data: analytics } = useQuery('fees-analytics', async () => {
+  const { data: analytics } = useQuery(['fees-analytics', schoolId], async () => {
+    if (!schoolId) return { totalRevenue: 0, totalPending: 0, totalPaid: 0, statusDistribution: [], feeTypeDistribution: [] };
     const [allFees, pendingFees, paidFees] = await Promise.all([
-      api.get('/fees?limit=1000').catch(() => ({ data: { data: [] } })),
-      api.get('/fees?status=pending&limit=1000').catch(() => ({ data: { data: [] } })),
-      api.get('/fees?status=paid&limit=1000').catch(() => ({ data: { data: [] } })),
+      api.get(`/fees?school_id=${schoolId}&limit=1000`).catch(() => ({ data: { data: [] } })),
+      api.get(`/fees?school_id=${schoolId}&status=pending&limit=1000`).catch(() => ({ data: { data: [] } })),
+      api.get(`/fees?school_id=${schoolId}&status=paid&limit=1000`).catch(() => ({ data: { data: [] } })),
     ]);
 
     const all = allFees.data.data || [];
@@ -161,15 +169,24 @@ const Fees: React.FC = () => {
   }, []);
 
   const handleSendReminder = useCallback((fee: any) => {
-    if (window.confirm(`Send reminder for fee of ₹${parseFloat(fee.amount).toLocaleString()} to ${fee.student?.first_name} ${fee.student?.last_name}?`)) {
-      sendReminderMutation.mutate({ id: fee.id, method: 'email' });
-    }
-  }, [sendReminderMutation]);
+    confirm(
+      `Send reminder for fee of ₹${parseFloat(fee.amount).toLocaleString()} to ${fee.student?.first_name} ${fee.student?.last_name}?`,
+      () => {
+        sendReminderMutation.mutate(
+          { id: fee.id, method: 'email' },
+          {
+            onSuccess: () => showSuccess('Reminder sent successfully'),
+            onError: () => showError('Failed to send reminder'),
+          }
+        );
+      }
+    );
+  }, [sendReminderMutation, confirm, showSuccess, showError]);
 
   const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Payment link copied to clipboard!');
-  }, []);
+    showSuccess('Payment link copied to clipboard!');
+  }, [showSuccess]);
 
   const handleSubmitPayment = useCallback(() => {
     if (!selectedFee || !paymentAmount) return;
@@ -286,7 +303,7 @@ const Fees: React.FC = () => {
     {
       headerName: 'Actions',
       field: 'actions',
-      width: 250,
+      width: 200,
       pinned: 'right',
       cellRenderer: (params: ICellRendererParams) => {
         const fee = params.data;
@@ -294,76 +311,118 @@ const Fees: React.FC = () => {
           return <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>Paid</span>;
         }
         return (
-          <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button
               onClick={() => handlePayFee(fee)}
               style={{
-                padding: '0.25rem 0.5rem',
-                border: 'none',
-                background: 'var(--color-primary)',
-                color: 'white',
+                padding: '0.375rem',
+                border: '1px solid var(--color-border)',
+                background: 'transparent',
+                color: 'var(--color-text-secondary)',
                 borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer',
-                fontSize: '0.75rem',
-                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+                e.currentTarget.style.color = 'var(--color-primary)';
+                e.currentTarget.style.backgroundColor = 'var(--color-primary)10';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.color = 'var(--color-text-secondary)';
+                e.currentTarget.style.backgroundColor = 'transparent';
               }}
               title="Pay Fee"
             >
-              Pay
+              <DollarSign size={16} strokeWidth={1.5} />
             </button>
             <button
               onClick={() => handleGenerateLink(fee)}
               style={{
-                padding: '0.25rem 0.5rem',
-                border: 'none',
-                background: 'var(--color-info)',
-                color: 'white',
+                padding: '0.375rem',
+                border: '1px solid var(--color-border)',
+                background: 'transparent',
+                color: 'var(--color-text-secondary)',
                 borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer',
-                fontSize: '0.75rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.25rem',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-info)';
+                e.currentTarget.style.color = 'var(--color-info)';
+                e.currentTarget.style.backgroundColor = 'var(--color-info)10';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.color = 'var(--color-text-secondary)';
+                e.currentTarget.style.backgroundColor = 'transparent';
               }}
               title="Generate Payment Link"
             >
-              <LinkIcon size={12} />
+              <LinkIcon size={16} strokeWidth={1.5} />
             </button>
             <button
               onClick={() => handlePostpone(fee)}
               style={{
-                padding: '0.25rem 0.5rem',
-                border: 'none',
-                background: 'var(--color-warning)',
-                color: 'white',
+                padding: '0.375rem',
+                border: '1px solid var(--color-border)',
+                background: 'transparent',
+                color: 'var(--color-text-secondary)',
                 borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer',
-                fontSize: '0.75rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.25rem',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-warning)';
+                e.currentTarget.style.color = 'var(--color-warning)';
+                e.currentTarget.style.backgroundColor = 'var(--color-warning)10';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.color = 'var(--color-text-secondary)';
+                e.currentTarget.style.backgroundColor = 'transparent';
               }}
               title="Postpone Payment"
             >
-              <Calendar size={12} />
+              <Calendar size={16} strokeWidth={1.5} />
             </button>
             <button
               onClick={() => handleSendReminder(fee)}
               style={{
-                padding: '0.25rem 0.5rem',
-                border: 'none',
-                background: 'var(--color-secondary)',
-                color: 'white',
+                padding: '0.375rem',
+                border: '1px solid var(--color-border)',
+                background: 'transparent',
+                color: 'var(--color-text-secondary)',
                 borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer',
-                fontSize: '0.75rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.25rem',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-secondary)';
+                e.currentTarget.style.color = 'var(--color-secondary)';
+                e.currentTarget.style.backgroundColor = 'var(--color-secondary)10';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.color = 'var(--color-text-secondary)';
+                e.currentTarget.style.backgroundColor = 'transparent';
               }}
               title="Send Reminder"
             >
-              <Send size={12} />
+              <Send size={16} strokeWidth={1.5} />
             </button>
           </div>
         );
@@ -424,7 +483,7 @@ const Fees: React.FC = () => {
           <p className={styles.subtitle}>Track and collect student fees with advanced analytics</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button icon={<Download size={18} />} variant="outline" onClick={handleExport}>
+          <Button icon={<Download size={18} />} variant="outline" onClick={handleExport} style={{ display: 'none' }}>
             Export
           </Button>
           <Button icon={<Plus size={18} />}>Add Fee</Button>
@@ -713,7 +772,7 @@ const Fees: React.FC = () => {
               <Button
                 onClick={() => {
                   if (!newDueDate) {
-                    alert('Please select a new due date');
+                    showWarning('Please select a new due date');
                     return;
                   }
                   postponePaymentMutation.mutate({

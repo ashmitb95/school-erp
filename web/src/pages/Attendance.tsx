@@ -1,10 +1,12 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useSearchParams } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgChartsReact } from 'ag-charts-react';
 import { Search, Calendar, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 import api from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 import Input from '../components/Input/Input';
 import Button from '../components/Button/Button';
 import Card from '../components/Card/Card';
@@ -16,48 +18,84 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 const Attendance: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const schoolId = user?.school_id;
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Read filters from URL params (for deep linking from Dashboard)
+  const urlDate = searchParams.get('date');
+  const urlStatus = searchParams.get('status');
+  const urlLeaveType = searchParams.get('leave_type');
+  
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(urlDate || new Date().toISOString().split('T')[0]);
+  const [statusFilter, setStatusFilter] = useState(urlStatus || 'all');
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState(urlLeaveType || 'all');
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // Sync URL params to state on mount
+  useEffect(() => {
+    if (urlDate) setSelectedDate(urlDate);
+    if (urlStatus) setStatusFilter(urlStatus);
+    if (urlLeaveType) setLeaveTypeFilter(urlLeaveType);
+  }, [urlDate, urlStatus, urlLeaveType]);
+
   const { data, isLoading } = useQuery(
-    ['attendance', page, search, selectedDate],
+    ['attendance', schoolId, page, search, selectedDate, statusFilter, leaveTypeFilter],
     async () => {
+      if (!schoolId) return { data: [], pagination: { total: 0 } };
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '50',
         date: selectedDate,
+        school_id: schoolId,
       });
       if (search) params.append('search', search);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (leaveTypeFilter !== 'all') params.append('leave_type', leaveTypeFilter);
       const response = await api.get(`/attendance?${params}`);
       return response.data;
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   const { data: stats } = useQuery(
-    ['attendance-stats', startDate, endDate],
+    ['attendance-stats', schoolId, startDate, endDate],
     async () => {
-      const response = await api.get(`/attendance/stats?start_date=${startDate}&end_date=${endDate}`);
+      if (!schoolId) return { stats: [] };
+      const response = await api.get(`/attendance/stats?school_id=${schoolId}&start_date=${startDate}&end_date=${endDate}`);
       return response.data;
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   const chartOptions = useMemo(() => {
     if (!stats?.stats) return null;
+    // Map status to colors: present uses palette, absent/late use alert colors
+    const statusColorMap: Record<string, string> = {
+      present: '#474448', // gunmetal
+      absent: '#EF4444', // red for alert
+      late: '#F59E0B', // orange for warning
+      excused: '#534b52', // taupe-grey
+    };
+    
+    const data = stats.stats.map((stat: any) => ({
+      status: stat.status.charAt(0).toUpperCase() + stat.status.slice(1),
+      count: parseInt(stat.count || 0),
+      color: statusColorMap[stat.status.toLowerCase()] || '#474448',
+    }));
+    
     return {
-      data: stats.stats.map((stat: any) => ({
-        status: stat.status.charAt(0).toUpperCase() + stat.status.slice(1),
-        count: parseInt(stat.count || 0),
-      })),
+      data,
       series: [
         {
           type: 'pie',
           angleKey: 'count',
           labelKey: 'status',
-          fills: ['var(--color-success)', 'var(--color-error)', 'var(--color-warning)', 'var(--color-info)'],
-          strokes: ['var(--color-success)', 'var(--color-error)', 'var(--color-warning)', 'var(--color-info)'],
+          fills: data.map((d: any) => d.color),
+          strokes: data.map((d: any) => d.color),
         },
       ],
       legend: {
@@ -204,6 +242,32 @@ const Attendance: React.FC = () => {
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
             />
+          </div>
+          <div className={styles.dateInput}>
+            <label>Status:</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', width: '100%' }}
+            >
+              <option value="all">All Status</option>
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+              <option value="late">Late</option>
+              <option value="excused">Excused</option>
+            </select>
+          </div>
+          <div className={styles.dateInput}>
+            <label>Leave Type:</label>
+            <select
+              value={leaveTypeFilter}
+              onChange={(e) => setLeaveTypeFilter(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', width: '100%' }}
+            >
+              <option value="all">All Leave Types</option>
+              <option value="planned">Planned</option>
+              <option value="unplanned">Unplanned</option>
+            </select>
           </div>
           <div className={styles.dateRange}>
             <div className={styles.dateInput}>

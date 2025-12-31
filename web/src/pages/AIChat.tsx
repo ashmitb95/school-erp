@@ -10,12 +10,15 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { AIMessage } from '../services/aiService';
 import api from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 import Button from '../components/Button/Button';
 import Input from '../components/Input/Input';
 import Card from '../components/Card/Card';
 import styles from './AIChat.module.css';
 
 const AIChat: React.FC = () => {
+  const { user } = useAuthStore();
+  const schoolId = user?.school_id;
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,13 +26,14 @@ const AIChat: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const fetchedSqlRef = useRef<Set<string>>(new Set()); // Track which SQL queries we've already fetched
 
-  // Fetch context for AI
-  const { data: context } = useQuery('ai-context', async () => {
+  // Fetch context for AI - filtered by school_id
+  const { data: context } = useQuery(['ai-context', schoolId], async () => {
+    if (!schoolId) return { totalStudents: 0, pendingFees: 0, absentCount: 0 };
     const today = new Date().toISOString().split('T')[0];
     const [students, pendingFees, attendance] = await Promise.all([
-      api.get('/student?limit=1').catch(() => ({ data: { pagination: { total: 0 } } })),
-      api.get('/fees?status=pending&limit=1').catch(() => ({ data: { pagination: { total: 0 } } })),
-      api.get(`/attendance/stats?start_date=${today}&end_date=${today}`).catch(() => ({ data: { stats: [] } })),
+      api.get(`/student?school_id=${schoolId}&limit=1`).catch(() => ({ data: { pagination: { total: 0 } } })),
+      api.get(`/fees?school_id=${schoolId}&status=pending&limit=1`).catch(() => ({ data: { pagination: { total: 0 } } })),
+      api.get(`/attendance/stats?school_id=${schoolId}&start_date=${today}&end_date=${today}`).catch(() => ({ data: { stats: [] } })),
     ]);
 
     const attendanceStats = attendance.data.stats || [];
@@ -41,6 +45,7 @@ const AIChat: React.FC = () => {
       absentCount: parseInt(absentCount),
     };
   }, {
+    enabled: !!schoolId,
     refetchInterval: 60000, // Refetch every minute
   });
 
@@ -705,20 +710,20 @@ const AIChat: React.FC = () => {
             angleKey: valueKey,
             labelKey: categoryKey,
             fills: [
-              'var(--color-primary)',
-              'var(--color-secondary)',
-              'var(--color-success)',
-              'var(--color-warning)',
-              'var(--color-error)',
-              'var(--color-info)',
+              '#474448', // gunmetal
+              '#534b52', // taupe-grey
+              '#2d232e', // shadow-grey
+              '#e0ddcf', // bone
+              '#F59E0B', // orange for warnings
+              '#EF4444', // red for errors
             ],
             strokes: [
-              'var(--color-primary)',
-              'var(--color-secondary)',
-              'var(--color-success)',
-              'var(--color-warning)',
-              'var(--color-error)',
-              'var(--color-info)',
+              '#474448',
+              '#534b52',
+              '#2d232e',
+              '#e0ddcf',
+              '#F59E0B',
+              '#EF4444',
             ],
           },
         ],

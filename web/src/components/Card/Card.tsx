@@ -8,6 +8,7 @@ interface CardProps {
   onClick?: () => void;
   hover?: boolean;
   padding?: 'sm' | 'md' | 'lg';
+  style?: React.CSSProperties;
 }
 
 const Card: React.FC<CardProps> = ({
@@ -16,6 +17,7 @@ const Card: React.FC<CardProps> = ({
   onClick,
   hover = false,
   padding = 'md',
+  style,
 }) => {
   const cardClasses = [
     styles.card,
@@ -33,8 +35,9 @@ const Card: React.FC<CardProps> = ({
         onClick,
         whileHover: { scale: 1.02, y: -2 },
         whileTap: { scale: 0.98 },
+        style,
       }
-    : {};
+    : { style };
 
   return (
     <Component className={cardClasses} {...props}>

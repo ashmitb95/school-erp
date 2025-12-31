@@ -52,8 +52,13 @@ app.get('/staff', async (req: Request, res: Response) => {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, designation, department, is_active, search } = req.query;
 
-    const where: any = {};
-    if (school_id) where.school_id = school_id;
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const where: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
+    };
     if (designation) where.designation = designation;
     if (department) where.department = department;
     if (is_active !== undefined) where.is_active = is_active === 'true';
@@ -197,8 +202,13 @@ app.get('/classes', async (req: Request, res: Response) => {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, academic_year, is_active } = req.query;
 
-    const where: any = {};
-    if (school_id) where.school_id = school_id;
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const where: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
+    };
     if (academic_year) where.academic_year = academic_year;
     if (is_active !== undefined) where.is_active = is_active === 'true';
 
@@ -215,12 +225,15 @@ app.get('/classes', async (req: Request, res: Response) => {
       order: [['level', 'ASC'], ['name', 'ASC']],
     });
 
-    // Get student count for each class
+    // Get student count for each class (with school_id safety check)
     const classesWithCounts = await Promise.all(
       rows.map(async (cls: any) => {
-        const studentCount = await Student.count({
-          where: { class_id: cls.id, is_active: true },
-        });
+        const studentWhere: any = { class_id: cls.id, is_active: true };
+        // Extra safety: if school_id filter was applied, ensure students also belong to that school
+        if (school_id) {
+          studentWhere.school_id = school_id;
+        }
+        const studentCount = await Student.count({ where: studentWhere });
         return {
           ...cls.toJSON(),
           student_count: studentCount,
@@ -347,8 +360,13 @@ app.get('/subjects', async (req: Request, res: Response) => {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, is_active, search } = req.query;
 
-    const where: any = {};
-    if (school_id) where.school_id = school_id;
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const where: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
+    };
     if (is_active !== undefined) where.is_active = is_active === 'true';
     if (search) {
       where[Op.or] = [
@@ -485,21 +503,31 @@ const createTimetableSchema = z.object({
 // Get timetables
 app.get('/timetables', async (req: Request, res: Response) => {
   try {
-    const { class_id, teacher_id, academic_year, day_of_week } = req.query;
+    const { school_id, class_id, teacher_id, academic_year, day_of_week } = req.query;
 
-    const where: any = {};
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const where: any = {
+      is_active: true,
+    };
     if (class_id) where.class_id = class_id;
     if (teacher_id) where.teacher_id = teacher_id;
     if (academic_year) where.academic_year = academic_year;
     if (day_of_week !== undefined) where.day_of_week = parseInt(day_of_week as string);
-    where.is_active = true;
+
+    // Build class filter with school_id (REQUIRED)
+    const classWhere: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
+    };
 
     // Order by class level/name descending when no specific class is selected
     const order: any[] = [];
     if (!class_id) {
-      // Order by class level descending, then class name descending
+      // Order by class level descending, then class name/section
       order.push([{ model: Class, as: 'class' }, 'level', 'DESC']);
-      order.push([{ model: Class, as: 'class' }, 'name', 'DESC']);
+      order.push([{ model: Class, as: 'class' }, 'section', 'ASC']);
     }
     // Always order by day and period
     order.push(['day_of_week', 'ASC']);
@@ -508,7 +536,12 @@ app.get('/timetables', async (req: Request, res: Response) => {
     const timetables = await Timetable.findAll({
       where,
       include: [
-        { model: Class, as: 'class', attributes: ['id', 'name', 'code', 'level'] },
+        { 
+          model: Class, 
+          as: 'class', 
+          attributes: ['id', 'name', 'code', 'level', 'section', 'school_id'],
+          where: Object.keys(classWhere).length > 0 ? classWhere : undefined,
+        },
         { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
         { model: Staff, as: 'teacher', attributes: ['id', 'first_name', 'last_name', 'employee_id'] },
       ],
@@ -636,8 +669,13 @@ app.get('/transport-routes', async (req: Request, res: Response) => {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, is_active, search } = req.query;
 
-    const where: any = {};
-    if (school_id) where.school_id = school_id;
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const where: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
+    };
     if (is_active !== undefined) where.is_active = is_active === 'true';
     if (search) {
       where[Op.or] = [

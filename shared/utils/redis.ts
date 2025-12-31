@@ -6,10 +6,17 @@ import logger from './logger';
 // Load .env from project root
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const redisClient = createClient({
-  url: `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`,
-  password: process.env.REDIS_PASSWORD || undefined,
-});
+// Support both REDIS_URL (Upstash) and individual env vars
+const redisUrl = process.env.REDIS_URL;
+
+const redisClient = redisUrl
+  ? createClient({
+      url: redisUrl,
+    })
+  : createClient({
+      url: `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`,
+      password: process.env.REDIS_PASSWORD || undefined,
+    });
 
 redisClient.on('error', (err) => {
   logger.error('Redis Client Error:', err);

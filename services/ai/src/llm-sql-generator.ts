@@ -157,6 +157,13 @@ Before generating SQL, think about what the user really wants:
 5. Always include context - if querying students, show their class. If querying fees, show student info.
 6. Use DISTINCT when needed to avoid duplicate rows (e.g., when joining fees to students)
 7. Order results logically - by date (most recent first), by name (alphabetical), or by amount (highest first)
+8. CRITICAL FOR RATIOS/PERCENTAGES: If the user asks for a "ratio" or "percentage", you have two options:
+   a) Generate SQL that directly calculates the ratio/percentage using GROUP BY and aggregate functions (preferred)
+   b) Generate SQL that returns data grouped by the relevant categories (e.g., stream, type, status) so the ratio can be calculated from the results
+   For example, for "ratio of science to arts students", you could:
+   - Option A (preferred): SELECT stream, COUNT(DISTINCT student_id) as count FROM (...) GROUP BY stream
+   - Option B: Return all records with a 'stream' field that categorizes each record, and the system will calculate the ratio
+   Always include a categorization field (like 'stream', 'category', 'type') when the query involves ratios or comparisons
 
 IMPORTANT RULES:
 1. Only generate SELECT queries - never INSERT, UPDATE, DELETE, DROP, or ALTER
@@ -173,23 +180,46 @@ IMPORTANT RULES:
 
 EXAMPLES OF QUERIES:
 - "show me which students in Class XII are absent today"
-  SQL: SELECT DISTINCT s.*, c.name as class_name, a.status, a.date FROM students s JOIN classes c ON s.class_id = c.id LEFT JOIN attendances a ON s.id = a.student_id AND a.date = CURRENT_DATE WHERE c.name ILIKE '%XII%' AND (a.status = 'absent' OR a.status IS NULL) ORDER BY s.roll_number
+  SQL: SELECT DISTINCT s.*, c.name as class_name, a.status, a.date FROM students s JOIN classes c ON s.class_id = c.id LEFT JOIN attendances a ON s.id = a.student_id AND a.date = CURRENT_DATE WHERE s.school_id = '<school_id_from_context>' AND c.name ILIKE '%XII%' AND (a.status = 'absent' OR a.status IS NULL) ORDER BY s.roll_number
 
 - "students with pending fees"
-  SQL: SELECT DISTINCT s.*, f.amount, f.due_date, f.fee_type, f.status FROM students s JOIN fees f ON s.id = f.student_id WHERE f.status = 'pending' ORDER BY f.due_date DESC, s.last_name
+  SQL: SELECT DISTINCT s.*, f.amount, f.due_date, f.fee_type, f.status FROM students s JOIN fees f ON s.id = f.student_id WHERE s.school_id = '<school_id_from_context>' AND f.school_id = '<school_id_from_context>' AND f.status = 'pending' ORDER BY f.due_date DESC, s.last_name
 
 - "how many students have unpaid library fees in the last month?"
-  SQL: SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, f.amount, f.due_date, f.fee_type, f.status FROM students s JOIN fees f ON s.id = f.student_id LEFT JOIN classes c ON s.class_id = c.id WHERE f.fee_type = 'library' AND f.status IN ('pending', 'partial') AND f.due_date >= CURRENT_DATE - INTERVAL '1 month' ORDER BY f.due_date DESC, s.last_name
+  SQL: SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, f.amount, f.due_date, f.fee_type, f.status FROM students s JOIN fees f ON s.id = f.student_id LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id_from_context>' AND f.school_id = '<school_id_from_context>' AND f.fee_type = 'library' AND f.status IN ('pending', 'partial') AND f.due_date >= CURRENT_DATE - INTERVAL '1 month' ORDER BY f.due_date DESC, s.last_name
 
 - "top 10 students by exam marks"
-  SQL: SELECT s.*, s.first_name, s.last_name, s.admission_number, c.name as class_name, AVG(er.marks_obtained * 100.0 / NULLIF(er.max_marks, 0)) as avg_percentage FROM students s JOIN exam_results er ON s.id = er.student_id LEFT JOIN classes c ON s.class_id = c.id GROUP BY s.id, s.first_name, s.last_name, s.admission_number, c.name ORDER BY avg_percentage DESC LIMIT 10
+  SQL: SELECT s.*, s.first_name, s.last_name, s.admission_number, c.name as class_name, AVG(er.marks_obtained * 100.0 / NULLIF(er.max_marks, 0)) as avg_percentage FROM students s JOIN exam_results er ON s.id = er.student_id JOIN exams e ON er.exam_id = e.id LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id_from_context>' AND e.school_id = '<school_id_from_context>' GROUP BY s.id, s.first_name, s.last_name, s.admission_number, c.name ORDER BY avg_percentage DESC LIMIT 10
 
 - "list all students absent today"
-  SQL: SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, a.status, a.date FROM students s JOIN classes c ON s.class_id = c.id JOIN attendances a ON s.id = a.student_id WHERE a.date = CURRENT_DATE AND a.status = 'absent' ORDER BY c.name, s.roll_number
+  SQL: SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, a.status, a.date FROM students s JOIN classes c ON s.class_id = c.id JOIN attendances a ON s.id = a.student_id WHERE s.school_id = '<school_id_from_context>' AND a.school_id = '<school_id_from_context>' AND a.date = CURRENT_DATE AND a.status = 'absent' ORDER BY c.name, s.roll_number
+
+- "what is the ratio of science students to arts students?"
+  SQL: SELECT 
+    CASE 
+      WHEN sub.name ILIKE '%science%' OR sub.name ILIKE '%physics%' OR sub.name ILIKE '%chemistry%' OR sub.name ILIKE '%biology%' OR sub.name ILIKE '%mathematics%' THEN 'Science'
+      WHEN sub.name ILIKE '%arts%' OR sub.name ILIKE '%english%' OR sub.name ILIKE '%hindi%' OR sub.name ILIKE '%history%' OR sub.name ILIKE '%geography%' OR sub.name ILIKE '%literature%' THEN 'Arts'
+      ELSE 'Other'
+    END as stream,
+    COUNT(DISTINCT s.id) as student_count
+  FROM students s
+  JOIN exam_results er ON s.id = er.student_id
+  JOIN exams e ON er.exam_id = e.id
+  JOIN subjects sub ON er.subject_id = sub.id
+  WHERE s.school_id = '<school_id_from_context>' AND e.school_id = '<school_id_from_context>' AND sub.school_id = '<school_id_from_context>'
+    AND (sub.name ILIKE '%science%' OR sub.name ILIKE '%physics%' OR sub.name ILIKE '%chemistry%' OR sub.name ILIKE '%biology%' OR sub.name ILIKE '%mathematics%' 
+         OR sub.name ILIKE '%arts%' OR sub.name ILIKE '%english%' OR sub.name ILIKE '%hindi%' OR sub.name ILIKE '%history%' OR sub.name ILIKE '%geography%' OR sub.name ILIKE '%literature%')
+  GROUP BY stream
+  HAVING stream IN ('Science', 'Arts')
+  ORDER BY stream
 
 USER QUERY: "${query}"
 
-Think about what data the user wants to see, then generate the SQL query that returns full records with all relevant details:`;
+Think about what data the user wants to see. If they ask for ratios, percentages, or comparisons, either:
+1. Generate SQL that directly calculates the metric using GROUP BY and aggregates (preferred)
+2. Generate SQL that includes a categorization field (like 'stream', 'category', 'type') so the ratio can be calculated from the results
+
+Then generate the SQL query:`;
   }
 
   /**
@@ -520,9 +550,19 @@ Think about what data the user wants to see, then generate the SQL query that re
    */
   async generateSQL(query: string, context?: any, conversationHistory?: Array<{ role: string; content: string }>): Promise<SQLGenerationResult | null> {
     try {
+      // Extract school_id from context - REQUIRED for all queries
+      const schoolId = context?.school_id;
+      if (!schoolId) {
+        console.error('[LLM SQL Generator] school_id is missing from context');
+        throw new Error('school_id is required in context for SQL generation');
+      }
+
       const prompt = await this.buildPrompt(query, context, conversationHistory);
       const rawSQL = await this.callLLM(prompt);
-      const sql = this.sanitizeSQL(rawSQL);
+      let sql = this.sanitizeSQL(rawSQL);
+
+      // Post-process: Replace <school_id_from_context> placeholder with actual school_id
+      sql = sql.replace(/<school_id_from_context>/g, schoolId);
 
       return {
         sql,
@@ -572,6 +612,162 @@ Think about what data the user wants to see, then generate the SQL query that re
   }
 
   /**
+   * Analyze data and perform calculations (ratios, percentages, etc.)
+   */
+  analyzeData(query: string, data: any[]): { analysis?: string; insights?: any } {
+    if (data.length === 0) {
+      return {};
+    }
+
+    const queryLower = query.toLowerCase();
+    const insights: any = {};
+
+    // Detect ratio queries
+    if (queryLower.includes('ratio') || queryLower.includes('ratio of')) {
+      // Try to find grouping fields (like 'stream', 'category', 'type', etc.)
+      const groupingFields = ['stream', 'category', 'type', 'status', 'class_name', 'subject_name'];
+      let groupField: string | null = null;
+      
+      for (const field of groupingFields) {
+        if (data[0] && data[0][field] !== undefined) {
+          groupField = field;
+          break;
+        }
+      }
+
+      if (groupField) {
+        // Check if data is already aggregated (has count fields)
+        const countFields = ['count', 'student_count', 'total_count', 'num_students'];
+        let isAggregated = false;
+        let countField: string | null = null;
+        
+        for (const field of countFields) {
+          if (data[0] && typeof data[0][field] === 'number') {
+            isAggregated = true;
+            countField = field;
+            break;
+          }
+        }
+
+        const groups: Record<string, number> = {};
+        
+        if (isAggregated && countField) {
+          // Data is already aggregated (e.g., SQL returned COUNT by group)
+          data.forEach((item: any) => {
+            const groupValue = item[groupField!];
+            const count = item[countField!];
+            if (groupValue && count) {
+              groups[groupValue] = count;
+            }
+          });
+        } else {
+          // Data is raw records - count distinct items by group
+          // For students, count distinct student IDs; for other records, count rows
+          const idField = data[0].student_id || data[0].id || null;
+          const seen = new Set<string>();
+          
+          data.forEach((item: any) => {
+            const groupValue = item[groupField!];
+            if (groupValue) {
+              const key = idField ? `${groupValue}:${item[idField]}` : `${groupValue}:${JSON.stringify(item)}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                groups[groupValue] = (groups[groupValue] || 0) + 1;
+              }
+            }
+          });
+        }
+
+        const groupEntries = Object.entries(groups).filter(([_, count]) => count > 0);
+        if (groupEntries.length >= 2) {
+          // Calculate ratio between first two groups
+          const [group1, count1] = groupEntries[0];
+          const [group2, count2] = groupEntries[1];
+          
+          const ratio = count1 / count2;
+          const ratioFormatted = ratio >= 1 
+            ? `${ratio.toFixed(2)}:1` 
+            : `1:${(1 / ratio).toFixed(2)}`;
+          
+          const total = count1 + count2;
+          insights.ratio = {
+            groups: { [group1]: count1, [group2]: count2 },
+            ratio: ratioFormatted,
+            percentage1: ((count1 / total) * 100).toFixed(1),
+            percentage2: ((count2 / total) * 100).toFixed(1),
+          };
+
+          return {
+            analysis: `The ratio of ${group1} to ${group2} is ${ratioFormatted} (${insights.ratio.percentage1}% ${group1}, ${insights.ratio.percentage2}% ${group2}). Total: ${total} ${group1} students and ${count2} ${group2} students.`,
+            insights
+          };
+        }
+      }
+    }
+
+    // Detect percentage queries
+    if (queryLower.includes('percentage') || queryLower.includes('percent')) {
+      // Similar logic for percentages
+      const groupingFields = ['stream', 'category', 'type', 'status'];
+      let groupField: string | null = null;
+      
+      for (const field of groupingFields) {
+        if (data[0] && data[0][field] !== undefined) {
+          groupField = field;
+          break;
+        }
+      }
+
+      if (groupField) {
+        const groups: Record<string, number> = {};
+        data.forEach((item: any) => {
+          const value = item[groupField!];
+          if (value) {
+            groups[value] = (groups[value] || 0) + 1;
+          }
+        });
+
+        const total = Object.values(groups).reduce((sum, count) => sum + count, 0);
+        const percentages: Record<string, string> = {};
+        
+        Object.entries(groups).forEach(([group, count]) => {
+          percentages[group] = ((count / total) * 100).toFixed(1);
+        });
+
+        insights.percentages = percentages;
+        const percentageText = Object.entries(percentages)
+          .map(([group, pct]) => `${group}: ${pct}%`)
+          .join(', ');
+
+        return {
+          analysis: `Breakdown: ${percentageText}`,
+          insights
+        };
+      }
+    }
+
+    // Detect average/mean queries
+    if (queryLower.includes('average') || queryLower.includes('mean') || queryLower.includes('avg')) {
+      const numericFields = ['marks_obtained', 'max_marks', 'amount', 'percentage', 'avg_percentage'];
+      for (const field of numericFields) {
+        if (data[0] && data[0][field] !== undefined) {
+          const values = data.map((item: any) => parseFloat(item[field]) || 0).filter(v => v > 0);
+          if (values.length > 0) {
+            const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
+            insights.average = { field, value: avg.toFixed(2) };
+            return {
+              analysis: `The average ${field.replace('_', ' ')} is ${avg.toFixed(2)}.`,
+              insights
+            };
+          }
+        }
+      }
+    }
+
+    return {};
+  }
+
+  /**
    * Format query results into natural language response
    */
   formatResponse(query: string, data: any[]): string {
@@ -579,8 +775,16 @@ Think about what data the user wants to see, then generate the SQL query that re
       return 'No results found.';
     }
 
+    // Perform data analysis for calculations
+    const analysis = this.analyzeData(query, data);
+    
     const count = data.length;
     const queryLower = query.toLowerCase();
+
+    // If we have analysis (ratios, percentages, etc.), include it
+    if (analysis.analysis) {
+      return `${analysis.analysis}\n\nHere are the detailed results (${count} ${count === 1 ? 'record' : 'records'}):`;
+    }
 
     // Focus on the actual data, count is just informational
     if (queryLower.includes('student')) {

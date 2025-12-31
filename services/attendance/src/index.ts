@@ -52,7 +52,7 @@ app.post('/', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors });
     }
-    console.error('Mark attendance error:', error);
+    console.error('Mark attendance error:', error?.message || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -109,7 +109,7 @@ app.post('/bulk', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors });
     }
-    console.error('Bulk mark attendance error:', error);
+    console.error('Bulk mark attendance error:', error?.message || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -118,14 +118,25 @@ app.post('/bulk', async (req: Request, res: Response) => {
 app.get('/', async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
-    const { school_id, student_id, class_id, date, start_date, end_date } = req.query;
+    const { school_id, student_id, class_id, date, start_date, end_date, status, leave_type } = req.query;
 
-    const where: any = {};
-    if (school_id) where.school_id = school_id;
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const where: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
+    };
     if (student_id) where.student_id = student_id;
     if (class_id) where.class_id = class_id;
-    if (date) where.date = date;
-    if (start_date && end_date) {
+    if (status) where.status = status;
+    if (leave_type) where.leave_type = leave_type;
+    
+    // Handle date filtering
+    if (date) {
+      // Convert to date range for the entire day to handle timezone issues
+      where.date = date;
+    } else if (start_date && end_date) {
       where.date = {
         [Op.between]: [start_date, end_date],
       };
@@ -154,21 +165,26 @@ app.get('/', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Get attendance error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get attendance error:', error?.message || error);
+    res.status(500).json({ error: 'Internal server error', message: error?.message });
   }
 });
 
 // Get attendance statistics
 app.get('/stats', async (req: Request, res: Response) => {
   try {
-    const { student_id, class_id, start_date, end_date } = req.query;
+    const { school_id, student_id, class_id, start_date, end_date } = req.query;
+
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
 
     if (!start_date || !end_date) {
       return res.status(400).json({ error: 'start_date and end_date are required' });
     }
 
     const where: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
       date: {
         [Op.between]: [start_date, end_date],
       },
@@ -188,7 +204,7 @@ app.get('/stats', async (req: Request, res: Response) => {
 
     res.json({ stats });
   } catch (error: any) {
-    console.error('Get attendance stats error:', error);
+    console.error('Get attendance stats error:', error?.message || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -208,7 +224,7 @@ sequelize
     });
   })
   .catch((error) => {
-    console.error('Database connection failed:', error);
+    console.error('Database connection failed:', error?.message || String(error));
     process.exit(1);
   });
 

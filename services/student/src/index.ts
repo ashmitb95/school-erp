@@ -49,8 +49,13 @@ app.get('/', async (req: Request, res: Response) => {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, class_id, academic_year, search } = req.query;
 
-    const where: any = {};
-    if (school_id) where.school_id = school_id;
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const where: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
+    };
     if (class_id) where.class_id = class_id;
     if (academic_year) where.academic_year = academic_year;
     if (search) {
@@ -114,15 +119,24 @@ app.get('/', async (req: Request, res: Response) => {
 app.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { school_id } = req.query;
+
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
 
     // Try cache
-    const cacheKey = `student:${id}`;
+    const cacheKey = `student:${id}:${school_id}`;
     const cached = await safeRedisGet(cacheKey);
     if (cached) {
       return res.json(JSON.parse(cached));
     }
 
-          const student = await Student.findByPk(id, {
+          const student = await Student.findOne({
+            where: {
+              id: id,
+              school_id: school_id, // REQUIRED - always filter by school_id
+            },
             include: [
               { model: Class, as: 'class' },
               { model: School, as: 'school' },
@@ -178,7 +192,16 @@ app.put('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const data = createStudentSchema.partial().parse(req.body);
 
-    const student = await Student.findByPk(id);
+    if (!data.school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const student = await Student.findOne({
+      where: {
+        id: id,
+        school_id: data.school_id, // REQUIRED - ensure student belongs to school
+      },
+    });
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
     }
@@ -206,8 +229,18 @@ app.put('/:id', async (req: Request, res: Response) => {
 app.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { school_id } = req.query;
 
-    const student = await Student.findByPk(id);
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const student = await Student.findOne({
+      where: {
+        id: id,
+        school_id: school_id, // REQUIRED - ensure student belongs to school
+      },
+    });
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
     }
@@ -231,7 +264,13 @@ app.delete('/:id', async (req: Request, res: Response) => {
 // Get class distribution summary
 app.get('/summary/class-distribution', async (req: Request, res: Response) => {
   try {
-    const cacheKey = 'student:class-distribution';
+    const { school_id } = req.query;
+
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const cacheKey = `student:class-distribution:${school_id}`;
     const cached = await safeRedisGet(cacheKey);
     if (cached) {
       return res.json(JSON.parse(cached));
@@ -247,6 +286,7 @@ app.get('/summary/class-distribution', async (req: Request, res: Response) => {
       ],
       attributes: ['id', 'class_id'],
       where: {
+        school_id: school_id, // REQUIRED - always filter by school_id
         is_active: true,
       },
     });

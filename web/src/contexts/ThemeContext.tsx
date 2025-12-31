@@ -32,12 +32,12 @@ interface ThemeProviderProps {
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setThemeState] = useState<'light' | 'dark'>('light');
   const [colors, setColorsState] = useState({
-    primary: '#6366f1',
-    secondary: '#8b5cf6',
-    success: '#10b981',
-    warning: '#f59e0b',
-    error: '#ef4444',
-    info: '#3b82f6',
+    primary: '#474448',
+    secondary: '#534b52',
+    success: '#474448',
+    warning: '#534b52',
+    error: '#2d232e',
+    info: '#474448',
   });
 
   useEffect(() => {

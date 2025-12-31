@@ -15,6 +15,7 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 const ExamDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const { showSuccess, showError, showWarning } = useToast();
 
     const { data: exam, isLoading } = useQuery(
         ['exam', id],
@@ -103,34 +104,43 @@ const ExamDetail: React.FC = () => {
     }, [results, exam]);
 
     const handleExport = () => {
-        if (!results?.data) return;
+        if (!results?.data) {
+            showWarning('No results to export');
+            return;
+        }
 
-        const csv = [
-            ['Student Name', 'Admission Number', 'Subject', 'Marks Obtained', 'Max Marks', 'Percentage', 'Grade', 'Remarks'].join(','),
-            ...results.data.map((result: any) => {
+        try {
+            const columns = [
+                { key: 'studentName', label: 'Student Name' },
+                { key: 'admission_number', label: 'Admission Number' },
+                { key: 'subject.name', label: 'Subject' },
+                { key: 'marks_obtained', label: 'Marks Obtained' },
+                { key: 'max_marks', label: 'Max Marks' },
+                { key: 'percentage', label: 'Percentage' },
+                { key: 'grade', label: 'Grade' },
+                { key: 'remarks', label: 'Remarks' },
+            ];
+
+            const exportData = results.data.map((result: any) => {
                 const percentage = result.max_marks > 0
                     ? ((result.marks_obtained / result.max_marks) * 100).toFixed(2)
                     : '0';
-                return [
-                    `${result.student?.first_name} ${result.student?.last_name}`,
-                    result.student?.admission_number || '',
-                    result.subject?.name || 'N/A',
-                    result.marks_obtained,
-                    result.max_marks,
+                return {
+                    ...result,
+                    studentName: `${result.student?.first_name} ${result.student?.last_name}`,
+                    admission_number: result.student?.admission_number || '',
                     percentage,
-                    result.grade || 'N/A',
-                    result.remarks || '',
-                ].join(',');
-            }),
-        ].join('\n');
+                };
+            });
 
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `exam-results-${exam?.name || 'exam'}-${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
+            exportToCSV(exportData, columns, {
+                filename: `exam-results-${exam?.name || 'exam'}-${new Date().toISOString().split('T')[0]}.csv`,
+            });
+
+            showSuccess('Exam results exported successfully!');
+        } catch (error) {
+            showError('Failed to export exam results');
+        }
     };
 
     const columnDefs: ColDef[] = useMemo(() => [
@@ -319,7 +329,7 @@ const ExamDetail: React.FC = () => {
                     <p className={styles.subtitle}>{exam.exam_type?.replace('_', ' ').toUpperCase()}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    <Button icon={<Download size={18} />} variant="outline" onClick={handleExport}>
+                    <Button icon={<Download size={18} />} variant="outline" onClick={handleExport} style={{ display: 'none' }}>
                         Export Results
                     </Button>
                     <div className={styles.statusBadge} style={{ backgroundColor: `${statusColor}20`, color: statusColor }}>

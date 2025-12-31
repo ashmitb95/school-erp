@@ -8,7 +8,7 @@ export const phoneSchema = z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian phon
 // Pagination schema
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(1000).default(20),
+  limit: z.coerce.number().int().positive().max(10000).default(20),
 });
 
 // Date range schema

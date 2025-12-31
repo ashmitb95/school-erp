@@ -301,36 +301,100 @@ async function seedDatabase() {
       allData.staff.push(...schoolStaff);
       console.log(`✅ ${schoolStaff.length}`);
 
-      // 3.4: Create Classes
+      // 3.4: Create Classes (with sections A, B, C, D for each level)
       process.stdout.write('   🎓 Classes... ');
       const schoolClasses = [];
+      const SECTIONS = ['A', 'B', 'C', 'D']; // 4 sections per class level
       let teacherIndex = 1; // Skip admin (index 0)
+      
       for (let i = 0; i < CONFIG.CLASS_LEVELS.length; i++) {
-        const classData = await models.Class.create({
-          school_id: school.id,
-          name: `Class ${CONFIG.CLASS_NAMES[i]}`,
-          code: `C${String(CONFIG.CLASS_LEVELS[i]).padStart(2, '0')}`,
-          level: CONFIG.CLASS_LEVELS[i],
-          academic_year: CONFIG.ACADEMIC_YEAR,
-          class_teacher_id: schoolStaff[teacherIndex]?.id, // Assign first teacher of each class level
-          capacity: faker.number.int({ min: 35, max: 50 }),
-          is_active: true,
-        }, { transaction, logging: false });
-        schoolClasses.push(classData);
-        teacherIndex += 2; // Move to next class's teachers
+        for (const section of SECTIONS) {
+          const classData = await models.Class.create({
+            school_id: school.id,
+            name: `Class ${CONFIG.CLASS_NAMES[i]}`,
+            code: `C${String(CONFIG.CLASS_LEVELS[i]).padStart(2, '0')}-${section}`,
+            section: section,
+            level: CONFIG.CLASS_LEVELS[i],
+            academic_year: CONFIG.ACADEMIC_YEAR,
+            class_teacher_id: schoolStaff[teacherIndex % (schoolStaff.length - 1) + 1]?.id,
+            capacity: faker.number.int({ min: 35, max: 50 }),
+            is_active: true,
+          }, { transaction, logging: false });
+          schoolClasses.push(classData);
+          teacherIndex++;
+        }
       }
       allData.classes.push(...schoolClasses);
       console.log(`✅ ${schoolClasses.length}`);
 
-      // 3.5: Create Students
+      // 3.5: Create Students - Respecting class capacity limits
       process.stdout.write('   👥 Students... ');
-      const studentsPerClass = Math.floor(CONFIG.STUDENTS_PER_SCHOOL / schoolClasses.length);
       const schoolStudents = [];
       let admissionCounter = 1;
 
+      // Calculate total capacity and distribute students intelligently
+      const totalCapacity = schoolClasses.reduce((sum, cls) => sum + cls.capacity, 0);
+      const targetStudents = CONFIG.STUDENTS_PER_SCHOOL;
+      
+      // If total capacity is less than target, fill classes proportionally up to capacity
+      // If total capacity is more than target, distribute proportionally
+      const fillRatio = Math.min(1, targetStudents / totalCapacity);
+      
+      // Distribute students proportionally by capacity, but respect individual class limits
+      let remainingStudents = targetStudents;
+      const classAllocations: Array<{ class: any; target: number }> = [];
+      
       for (const classData of schoolClasses) {
+        // Calculate proportional allocation based on capacity
+        const proportionalAllocation = Math.floor(classData.capacity * fillRatio);
+        // Add some randomness: 80-100% of capacity for realistic distribution
+        const utilizationRate = faker.number.float({ min: 0.80, max: 1.0 });
+        const targetForClass = Math.min(
+          classData.capacity,
+          Math.max(
+            Math.floor(proportionalAllocation * utilizationRate),
+            Math.floor(classData.capacity * 0.75) // At least 75% filled
+          )
+        );
+        classAllocations.push({ class: classData, target: targetForClass });
+      }
+      
+      // Adjust allocations to match total target (distribute remainder)
+      const allocatedTotal = classAllocations.reduce((sum, a) => sum + a.target, 0);
+      const difference = targetStudents - allocatedTotal;
+      
+      if (difference > 0) {
+        // Distribute remainder to classes that have space
+        const classesWithSpace = classAllocations
+          .filter(a => a.target < a.class.capacity)
+          .sort((a, b) => (b.class.capacity - b.target) - (a.class.capacity - a.target));
+        
+        let remaining = difference;
+        for (const allocation of classesWithSpace) {
+          if (remaining <= 0) break;
+          const spaceAvailable = allocation.class.capacity - allocation.target;
+          const toAdd = Math.min(remaining, spaceAvailable);
+          allocation.target += toAdd;
+          remaining -= toAdd;
+        }
+      } else if (difference < 0) {
+        // Reduce allocations if we overshot
+        const classesToReduce = classAllocations
+          .sort((a, b) => b.target - a.target);
+        
+        let remaining = Math.abs(difference);
+        for (const allocation of classesToReduce) {
+          if (remaining <= 0) break;
+          const toReduce = Math.min(remaining, allocation.target - Math.floor(allocation.class.capacity * 0.75));
+          allocation.target -= toReduce;
+          remaining -= toReduce;
+        }
+      }
+
+      // Create students for each class according to allocation
+      for (const { class: classData, target } of classAllocations) {
         const classStudents = [];
-        for (let s = 0; s < studentsPerClass; s++) {
+        for (let s = 0; s < target; s++) {
           const studentGender = faker.helpers.arrayElement(['male', 'female'] as const);
           const studentName = getIndianName(studentGender);
           const studentAddress = getIndianAddress();
@@ -370,7 +434,7 @@ async function seedDatabase() {
         schoolStudents.push(...classStudents);
       }
       allData.students.push(...schoolStudents);
-      console.log(`✅ ${schoolStudents.length.toLocaleString()}`);
+      console.log(`✅ ${schoolStudents.length.toLocaleString()} (avg ${Math.round(schoolStudents.length / schoolClasses.length)} per class)`);
 
       // 3.6: Create Library Books
       process.stdout.write('   📚 Library books... ');
@@ -415,54 +479,149 @@ async function seedDatabase() {
       allData.inventoryItems.push(...schoolInventory);
       console.log(`✅ ${schoolInventory.length}`);
 
-      // 3.8: Create Exams
+      // 3.8: Create Exams (mix of completed, in_progress, and scheduled)
       process.stdout.write('   📝 Exams... ');
       const schoolExams = [];
       const examTypes = ['monthly_test', 'mid_term', 'final'];
+      const examToday = new Date();
+      
+      // Helper to generate exam dates and status
+      const getExamDateAndStatus = (examType: string, index: number): { startDate: Date; endDate: Date; status: 'completed' | 'in_progress' | 'scheduled' } => {
+        // Monthly tests: distribute across past months
+        // Mid-terms: October (past)
+        // Finals: December (some completed, some upcoming)
+        
+        if (examType === 'monthly_test') {
+          // Monthly tests in past 6 months
+          const monthsAgo = (index % 6) + 1;
+          const startDate = new Date(examToday);
+          startDate.setMonth(startDate.getMonth() - monthsAgo);
+          startDate.setDate(faker.number.int({ min: 1, max: 15 }));
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 3);
+          return { startDate, endDate, status: 'completed' };
+        } else if (examType === 'mid_term') {
+          // Mid-term in October (past)
+          const startDate = new Date(examToday.getFullYear(), 9, faker.number.int({ min: 10, max: 20 }));
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 7);
+          return { startDate, endDate, status: startDate < examToday ? 'completed' : 'scheduled' };
+        } else {
+          // Finals - some completed (past week), some in progress (this week), some upcoming
+          const variant = index % 3;
+          if (variant === 0) {
+            // Completed last month
+            const startDate = new Date(examToday);
+            startDate.setMonth(startDate.getMonth() - 1);
+            startDate.setDate(faker.number.int({ min: 1, max: 15 }));
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 10);
+            return { startDate, endDate, status: 'completed' };
+          } else if (variant === 1) {
+            // In progress this week
+            const startDate = new Date(examToday);
+            startDate.setDate(startDate.getDate() - 2);
+            const endDate = new Date(examToday);
+            endDate.setDate(endDate.getDate() + 5);
+            return { startDate, endDate, status: 'in_progress' };
+          } else {
+            // Scheduled for next month
+            const startDate = new Date(examToday);
+            startDate.setMonth(startDate.getMonth() + 1);
+            startDate.setDate(faker.number.int({ min: 5, max: 20 }));
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 10);
+            return { startDate, endDate, status: 'scheduled' };
+          }
+        }
+      };
+
+      let examIndex = 0;
       for (const examType of examTypes) {
         for (const subject of schoolSubjects) {
-          for (const classData of schoolClasses) {
-            const exam = await models.Exam.create({
-              school_id: school.id,
-              name: `${examType.replace('_', ' ').toUpperCase()} - ${subject.name}`,
-              exam_type: examType,
-              academic_year: CONFIG.ACADEMIC_YEAR,
-              start_date: faker.date.future({ years: 1 }),
-              end_date: faker.date.future({ years: 1 }),
-              class_id: classData.id,
-              subject_id: subject.id,
-              max_marks: 100,
-              passing_marks: 33,
-              is_active: true,
-            }, { transaction, logging: false });
-            schoolExams.push(exam);
-          }
+          // Only create one exam per subject per exam type (not per class)
+          const { startDate, endDate, status } = getExamDateAndStatus(examType, examIndex);
+          const exam = await models.Exam.create({
+            school_id: school.id,
+            name: `${examType.replace('_', ' ').toUpperCase()} - ${subject.name}`,
+            exam_type: examType,
+            academic_year: CONFIG.ACADEMIC_YEAR,
+            start_date: startDate,
+            end_date: endDate,
+            class_id: null, // School-wide exam
+            subject_id: subject.id,
+            max_marks: 100,
+            passing_marks: 33,
+            status: status,
+            is_active: true,
+          }, { transaction, logging: false });
+          schoolExams.push(exam);
+          examIndex++;
         }
       }
       allData.exams.push(...schoolExams);
       console.log(`✅ ${schoolExams.length}`);
 
-      // 3.9: Create Exam Results (sample)
+      // 3.9: Create Exam Results for COMPLETED exams with realistic score distribution
       process.stdout.write('   📊 Exam results... ');
-      const schoolExamResults = [];
-      for (const exam of schoolExams.slice(0, 20)) { // Sample 20 exams
-        if (!exam.subject_id) continue; // Skip exams without subject
-        const examStudents = schoolStudents.filter(s => s.class_id === exam.class_id);
-        for (const student of examStudents.slice(0, 50)) { // 50 students per exam
-          const marks = faker.number.float({ min: 0, max: exam.max_marks, fractionDigits: 2 });
-          const result = await models.ExamResult.create({
+      const schoolExamResults: any[] = [];
+      
+      // Helper to generate realistic marks with distribution:
+      // 5% fail (< 33), 15% low scores (33-50), 30% average (50-70), 35% good (70-85), 15% excellent (85-100)
+      const getRealisticMarks = (maxMarks: number): number => {
+        const rand = Math.random() * 100;
+        if (rand < 5) {
+          // Failing (0-32%)
+          return faker.number.float({ min: 0, max: maxMarks * 0.32, fractionDigits: 2 });
+        } else if (rand < 20) {
+          // Low scores (33-50%)
+          return faker.number.float({ min: maxMarks * 0.33, max: maxMarks * 0.50, fractionDigits: 2 });
+        } else if (rand < 50) {
+          // Average (50-70%)
+          return faker.number.float({ min: maxMarks * 0.50, max: maxMarks * 0.70, fractionDigits: 2 });
+        } else if (rand < 85) {
+          // Good (70-85%)
+          return faker.number.float({ min: maxMarks * 0.70, max: maxMarks * 0.85, fractionDigits: 2 });
+        } else {
+          // Excellent (85-100%)
+          return faker.number.float({ min: maxMarks * 0.85, max: maxMarks, fractionDigits: 2 });
+        }
+      };
+
+      // Get completed exams
+      const completedExams = schoolExams.filter((e: any) => e.status === 'completed');
+      
+      // For each completed exam, create results for all students
+      for (const exam of completedExams) {
+        if (!exam.subject_id) continue;
+        
+        // Sample students for this exam (200 per exam to keep reasonable)
+        const examStudents = faker.helpers.arrayElements(schoolStudents, Math.min(200, schoolStudents.length));
+        
+        for (const student of examStudents) {
+          const marks = getRealisticMarks(exam.max_marks);
+          const grade = marks >= 90 ? 'A+' : marks >= 80 ? 'A' : marks >= 70 ? 'B+' : marks >= 60 ? 'B' : marks >= 50 ? 'C' : marks >= 33 ? 'D' : 'F';
+          
+          schoolExamResults.push({
             school_id: school.id,
             exam_id: exam.id,
             student_id: student.id,
             subject_id: exam.subject_id,
             marks_obtained: marks,
             max_marks: exam.max_marks,
-            grade: marks >= 90 ? 'A+' : marks >= 80 ? 'A' : marks >= 70 ? 'B+' : marks >= 60 ? 'B' : marks >= 50 ? 'C' : marks >= 33 ? 'D' : 'F',
-            remarks: faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.2 }),
-          }, { transaction, logging: false });
-          schoolExamResults.push(result);
+            grade: grade,
+            remarks: grade === 'F' ? 'Needs improvement' : faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.1 }),
+          });
         }
       }
+      
+      // Batch insert exam results
+      const resultBatchSize = 1000;
+      for (let i = 0; i < schoolExamResults.length; i += resultBatchSize) {
+        const batch = schoolExamResults.slice(i, i + resultBatchSize);
+        await models.ExamResult.bulkCreate(batch, { transaction, logging: false });
+      }
+      
       allData.examResults.push(...schoolExamResults);
       console.log(`✅ ${schoolExamResults.length.toLocaleString()}`);
 
@@ -525,46 +684,103 @@ async function seedDatabase() {
       allData.fees.push(...schoolFees);
       console.log(` ✅ ${schoolFees.length.toLocaleString()}`);
 
-      // 3.11: Create Attendance (last 30 days) - using batch inserts
+      // 3.11: Create Attendance (last 30 days + today) - using batch inserts
       process.stdout.write('   📅 Attendance records... ');
       const schoolAttendances: any[] = [];
       const today = new Date();
       const teachers = schoolStaff.filter(s => s.designation === 'Teacher');
-      const sampleStudents = schoolStudents.slice(0, 1000); // Sample 1000 students per day
       
-      // Generate attendance data in memory first
-      for (let day = 0; day < 30; day++) {
+      // Helper function to get realistic attendance status and leave type
+      // Distribution: 85% present, 10% absent, 4% late, 1% excused
+      const getAttendanceData = (): { status: 'present' | 'absent' | 'late' | 'excused'; leave_type: 'planned' | 'unplanned' | null } => {
+        const rand = Math.random() * 100;
+        if (rand < 85) return { status: 'present', leave_type: null };
+        if (rand < 95) {
+          // Absent: 70% unplanned, 30% planned
+          return { status: 'absent', leave_type: Math.random() < 0.7 ? 'unplanned' : 'planned' };
+        }
+        if (rand < 99) return { status: 'late', leave_type: null };
+        // Excused: 90% planned, 10% unplanned
+        return { status: 'excused', leave_type: Math.random() < 0.9 ? 'planned' : 'unplanned' };
+      };
+      
+      // Generate attendance for ALL students for the last 30 days including today
+      // To keep reasonable data size, we use a sample for historical and all for recent days
+      const historicalDays = 28; // Days 2-30 ago: sample of students
+      const recentDays = 2; // Days 0-1 (today and yesterday): ALL students
+      
+      // Map of class_id to class teacher
+      const classTeacherMap: Record<string, any> = {};
+      schoolClasses.forEach(c => {
+        const teacher = c.class_teacher_id 
+          ? schoolStaff.find(s => s.id === c.class_teacher_id)
+          : faker.helpers.arrayElement(teachers);
+        classTeacherMap[c.id] = teacher || faker.helpers.arrayElement(teachers);
+      });
+      
+      // For recent days (today and yesterday) - mark all students
+      for (let day = 0; day < recentDays; day++) {
         const date = new Date(today);
         date.setDate(date.getDate() - day);
-        if (date.getDay() === 0 || date.getDay() === 6) continue; // Skip weekends
-
-        for (const student of sampleStudents) {
-          // Find class teacher or any teacher for this class
-          const studentClass = schoolClasses.find(c => c.id === student.class_id);
-          const markingTeacher = studentClass?.class_teacher_id 
-            ? schoolStaff.find(s => s.id === studentClass.class_teacher_id) || faker.helpers.arrayElement(teachers)
-            : faker.helpers.arrayElement(teachers);
-          
+        // Skip weekends
+        if (date.getDay() === 0 || date.getDay() === 6) continue;
+        
+        for (const student of schoolStudents) {
+          const markingTeacher = classTeacherMap[student.class_id];
+          const attendanceData = getAttendanceData();
           schoolAttendances.push({
             school_id: school.id,
             student_id: student.id,
             class_id: student.class_id,
             date: date,
-            status: faker.helpers.arrayElement(['present', 'absent', 'late', 'excused'] as const),
-            marked_by: markingTeacher.id,
-            remarks: faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.1 }),
+            status: attendanceData.status,
+            leave_type: attendanceData.leave_type,
+            marked_by: markingTeacher?.id || teachers[0]?.id,
+            remarks: faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.05 }),
+          });
+        }
+      }
+      
+      // For historical days (2-30 days ago) - sample 2000 students per day
+      const sampleSize = Math.min(2000, schoolStudents.length);
+      for (let day = recentDays; day < 30; day++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - day);
+        // Skip weekends
+        if (date.getDay() === 0 || date.getDay() === 6) continue;
+        
+        // Randomly sample students for historical data
+        const sampledStudents = faker.helpers.arrayElements(schoolStudents, sampleSize);
+        
+        for (const student of sampledStudents) {
+          const markingTeacher = classTeacherMap[student.class_id];
+          const attendanceData = getAttendanceData();
+          schoolAttendances.push({
+            school_id: school.id,
+            student_id: student.id,
+            class_id: student.class_id,
+            date: date,
+            status: attendanceData.status,
+            leave_type: attendanceData.leave_type,
+            marked_by: markingTeacher?.id || teachers[0]?.id,
+            remarks: faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.05 }),
           });
         }
       }
       
       // Batch insert attendances
-      const attendanceBatchSize = 500;
+      const attendanceBatchSize = 1000;
+      let insertedAttendance = 0;
       for (let i = 0; i < schoolAttendances.length; i += attendanceBatchSize) {
         const batch = schoolAttendances.slice(i, i + attendanceBatchSize);
         await models.Attendance.bulkCreate(batch, { transaction, logging: false, validate: true });
+        insertedAttendance += batch.length;
+        if (i % (attendanceBatchSize * 10) === 0 || i + attendanceBatchSize >= schoolAttendances.length) {
+          process.stdout.write(`\r   📅 Attendance records... ${insertedAttendance.toLocaleString()}/${schoolAttendances.length.toLocaleString()}`);
+        }
       }
       allData.attendances.push(...schoolAttendances);
-      console.log(`✅ ${schoolAttendances.length.toLocaleString()}`);
+      console.log(` ✅ ${schoolAttendances.length.toLocaleString()}`);
 
       // 3.12: Create Timetables
       process.stdout.write('   ⏰ Timetables... ');
@@ -711,15 +927,3 @@ async function seedDatabase() {
 }
 
 seedDatabase();
-School 1:
-Email: admin@school1.edu.in
-Password: teacher@123
-School 2:
-Email: admin@school2.edu.in
-Password: teacher@123
-School 3:
-Email: admin@school3.edu.in
-Password: teacher@123
-School 4:
-Email: admin@school4.edu.in
-Password: teacher@123

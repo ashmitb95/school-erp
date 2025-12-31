@@ -4,6 +4,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Search, Plus, Edit, Trash2, Users, Briefcase, Mail, Phone, TrendingUp } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
+import { useToast } from '../../contexts/ToastContext';
 import Input from '../../components/Input/Input';
 import Button from '../../components/Button/Button';
 import Card from '../../components/Card/Card';
@@ -16,30 +18,36 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 const Staff: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const schoolId = user?.school_id;
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [designationFilter, setDesignationFilter] = useState('all');
 
   const { data, isLoading } = useQuery(
-    ['staff', page, search, designationFilter],
+    ['staff', schoolId, page, search, designationFilter],
     async () => {
+      if (!schoolId) return { data: [], pagination: { total: 0 } };
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '50',
+        school_id: schoolId,
       });
       if (search) params.append('search', search);
       if (designationFilter !== 'all') params.append('designation', designationFilter);
       const response = await api.get(`/management/staff?${params}`);
       return response.data;
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   const { data: staffSummary } = useQuery(
-    'staffSummary',
+    ['staffSummary', schoolId],
     async () => {
+      if (!schoolId) return { totalStaff: 0, designationDistribution: [] };
       const [totalStaff, designationDistribution] = await Promise.all([
-        api.get('/management/staff?limit=1').catch(() => ({ data: { pagination: { total: 0 } } })),
-        api.get('/management/staff?limit=1000').catch(() => ({ data: { data: [] } })),
+        api.get(`/management/staff?school_id=${schoolId}&limit=1`).catch(() => ({ data: { pagination: { total: 0 } } })),
+        api.get(`/management/staff?school_id=${schoolId}&limit=1000`).catch(() => ({ data: { data: [] } })),
       ]);
 
       const designations: Record<string, number> = {};
@@ -52,7 +60,8 @@ const Staff: React.FC = () => {
         totalStaff: totalStaff.data.pagination?.total || 0,
         designationDistribution: Object.entries(designations).map(([name, count]) => ({ name, count })),
       };
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   const deleteMutation = useMutation(
@@ -175,43 +184,65 @@ const Staff: React.FC = () => {
     {
       headerName: 'Actions',
       field: 'actions',
-      width: 120,
+      width: 100,
       pinned: 'right',
       cellRenderer: (params: ICellRendererParams) => (
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button
             onClick={() => {/* Edit functionality */}}
             style={{
-              padding: '0.25rem 0.5rem',
-              border: 'none',
-              background: 'var(--color-primary)',
-              color: 'white',
+              padding: '0.375rem',
+              border: '1px solid var(--color-border)',
+              background: 'transparent',
+              color: 'var(--color-text-secondary)',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.25rem',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-primary)';
+              e.currentTarget.style.color = 'var(--color-primary)';
+              e.currentTarget.style.backgroundColor = 'var(--color-primary)10';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
+              e.currentTarget.style.backgroundColor = 'transparent';
             }}
             title="Edit"
           >
-            <Edit size={14} />
+            <Edit size={16} strokeWidth={1.5} />
           </button>
           <button
             onClick={() => handleDelete(params.data.id)}
             style={{
-              padding: '0.25rem 0.5rem',
-              border: 'none',
-              background: 'var(--color-error)',
-              color: 'white',
+              padding: '0.375rem',
+              border: '1px solid var(--color-border)',
+              background: 'transparent',
+              color: 'var(--color-text-secondary)',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.25rem',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-error)';
+              e.currentTarget.style.color = 'var(--color-error)';
+              e.currentTarget.style.backgroundColor = 'var(--color-error)10';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
+              e.currentTarget.style.backgroundColor = 'transparent';
             }}
             title="Deactivate"
           >
-            <Trash2 size={14} />
+            <Trash2 size={16} strokeWidth={1.5} />
           </button>
         </div>
       ),
@@ -233,7 +264,7 @@ const Staff: React.FC = () => {
           <p className={styles.subtitle}>Manage all staff members and teachers</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button variant="secondary">Export CSV</Button>
+          <Button variant="secondary" style={{ display: 'none' }}>Export CSV</Button>
           <Button icon={<Plus size={18} />}>Add Staff</Button>
         </div>
       </div>

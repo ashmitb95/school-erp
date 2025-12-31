@@ -8,6 +8,7 @@ interface AttendanceAttributes {
   class_id: string;
   date: Date;
   status: 'present' | 'absent' | 'late' | 'excused';
+  leave_type?: 'planned' | 'unplanned' | null; // For absent/excused: planned (prior notice) or unplanned
   marked_by: string; // staff_id
   remarks?: string;
   created_at?: Date;
@@ -23,6 +24,7 @@ class Attendance extends Model<AttendanceAttributes, AttendanceCreationAttribute
   public class_id!: string;
   public date!: Date;
   public status!: 'present' | 'absent' | 'late' | 'excused';
+  public leave_type?: 'planned' | 'unplanned' | null;
   public marked_by!: string;
   public remarks?: string;
   public readonly created_at!: Date;
@@ -73,6 +75,10 @@ Attendance.init(
       type: DataTypes.ENUM('present', 'absent', 'late', 'excused'),
       allowNull: false,
     },
+    leave_type: {
+      type: DataTypes.ENUM('planned', 'unplanned'),
+      allowNull: true, // Only applicable for absent/excused
+    },
     marked_by: {
       type: DataTypes.UUID,
       allowNull: false,
@@ -103,6 +109,8 @@ Attendance.init(
       { fields: ['school_id', 'date'] },
       { fields: ['date'] },
       { fields: ['status'] },
+      { fields: ['leave_type'] },
+      { fields: ['school_id', 'date', 'leave_type'] },
     ],
   }
 );

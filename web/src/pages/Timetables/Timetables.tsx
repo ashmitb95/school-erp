@@ -2,34 +2,48 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from 'react-query';
 import { Search, Calendar, Clock, BookOpen, User, X, Eye } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
 import Input from '../../components/Input/Input';
 import Button from '../../components/Button/Button';
 import Card from '../../components/Card/Card';
 import styles from './Timetables.module.css';
 
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// Only weekdays (Monday to Friday)
+const WEEKDAYS = [
+  { index: 1, name: 'Monday', short: 'Mon' },
+  { index: 2, name: 'Tuesday', short: 'Tue' },
+  { index: 3, name: 'Wednesday', short: 'Wed' },
+  { index: 4, name: 'Thursday', short: 'Thu' },
+  { index: 5, name: 'Friday', short: 'Fri' },
+];
 
 const Timetables: React.FC = () => {
+  const { user } = useAuthStore();
+  const schoolId = user?.school_id;
+  
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [academicYear, setAcademicYear] = useState<string>('2024-2025');
   const [search, setSearch] = useState('');
   const [viewingClassId, setViewingClassId] = useState<string | null>(null);
 
-  // Fetch classes for dropdown
+  // Fetch classes for dropdown - filter by school_id
   const { data: classesData } = useQuery(
-    'classes',
+    ['classes', schoolId],
     async () => {
-      const response = await api.get('/management/classes?limit=1000');
+      if (!schoolId) return [];
+      const response = await api.get(`/management/classes?school_id=${schoolId}&limit=1000`);
       return response.data.data || [];
-    }
+    },
+    { enabled: !!schoolId }
   );
 
-  // Fetch timetables - now fetches all by default, ordered by class descending
+  // Fetch timetables - filter by school_id
   const { data: timetablesData, isLoading } = useQuery(
-    ['timetables', selectedClass, academicYear],
+    ['timetables', schoolId, selectedClass, academicYear],
     async () => {
+      if (!schoolId) return { data: [] };
       const params = new URLSearchParams({
+        school_id: schoolId,
         academic_year: academicYear,
       });
       if (selectedClass) {
@@ -37,7 +51,8 @@ const Timetables: React.FC = () => {
       }
       const response = await api.get(`/management/timetables?${params}`);
       return response.data;
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   // Group timetables by class
@@ -122,7 +137,7 @@ const Timetables: React.FC = () => {
           <p className={styles.subtitle}>View and manage class schedules</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button variant="secondary">Export PDF</Button>
+          <Button variant="secondary" style={{ display: 'none' }}>Export PDF</Button>
           <Button icon={<Calendar size={18} />}>Add Period</Button>
         </div>
       </div>
@@ -139,7 +154,7 @@ const Timetables: React.FC = () => {
               <option value="">All Classes</option>
               {classesData?.map((cls: any) => (
                 <option key={cls.id} value={cls.id}>
-                  {cls.name} ({cls.code})
+                  {cls.name} {cls.section ? `- Section ${cls.section}` : ''} ({cls.code})
                 </option>
               ))}
             </select>
@@ -197,7 +212,9 @@ const Timetables: React.FC = () => {
                 >
                   <div className={styles.listItemContent}>
                     <div>
-                      <h3 className={styles.listItemName}>{classData.name}</h3>
+                      <h3 className={styles.listItemName}>
+                        {classData.name} {classData.section ? `- Section ${classData.section}` : ''}
+                      </h3>
                       <p className={styles.listItemDetails}>
                         {classData.code} • Level {classData.level} • {academicYear}
                       </p>
@@ -237,7 +254,9 @@ const Timetables: React.FC = () => {
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div>
-                <h2 className={styles.modalTitle}>{viewingClassData.name}</h2>
+                <h2 className={styles.modalTitle}>
+                  {viewingClassData.name} {viewingClassData.section ? `- Section ${viewingClassData.section}` : ''}
+                </h2>
                 <p className={styles.modalSubtitle}>
                   {viewingClassData.code} • Level {viewingClassData.level} • {academicYear}
                 </p>
@@ -266,20 +285,20 @@ const Timetables: React.FC = () => {
               {/* Header row - Days as rows, Periods as columns */}
               <div className={styles.modalGridHeader}>
                 <div className={styles.modalDayHeader}>Day</div>
-                {Array.from({ length: Math.max(viewingMaxPeriod, 8) }, (_, periodIndex) => (
+                {Array.from({ length: Math.min(viewingMaxPeriod, 7) || 7 }, (_, periodIndex) => (
                   <div key={periodIndex + 1} className={styles.modalPeriodHeader}>
                     P{periodIndex + 1}
                   </div>
                 ))}
               </div>
 
-              {/* Day rows */}
-              {DAYS.map((day, dayIndex) => (
-                <div key={dayIndex} className={styles.modalGridRow}>
-                  <div className={styles.modalDayCell}>{day.substring(0, 3)}</div>
-                  {Array.from({ length: Math.max(viewingMaxPeriod, 8) }, (_, periodIndex) => {
+              {/* Day rows - Only weekdays (Mon-Fri) */}
+              {WEEKDAYS.map((day) => (
+                <div key={day.index} className={styles.modalGridRow}>
+                  <div className={styles.modalDayCell}>{day.short}</div>
+                  {Array.from({ length: Math.min(viewingMaxPeriod, 7) || 7 }, (_, periodIndex) => {
                     const period = periodIndex + 1;
-                    const timetable = viewingScheduleGrid[dayIndex]?.[period];
+                    const timetable = viewingScheduleGrid[day.index]?.[period];
                     return (
                       <div key={period} className={styles.modalScheduleCell}>
                         {timetable ? (

@@ -36,8 +36,13 @@ app.get('/', async (req: Request, res: Response) => {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, student_id, status, academic_year } = req.query;
 
-    const where: any = {};
-    if (school_id) where.school_id = school_id;
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
+    const where: any = {
+      school_id: school_id, // REQUIRED - always filter by school_id
+    };
     if (student_id) where.student_id = student_id;
     if (status) where.status = status;
     if (academic_year) where.academic_year = academic_year;
@@ -97,15 +102,20 @@ app.post('/', async (req: Request, res: Response) => {
 app.post('/:id/pay', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { payment_method, transaction_id, paid_amount } = z
+    const { school_id, payment_method, transaction_id, paid_amount } = z
       .object({
+        school_id: z.string().uuid(),
         payment_method: z.string(),
         transaction_id: z.string().optional(),
         paid_amount: z.number().positive(),
       })
       .parse(req.body);
 
-    const fee = await Fee.findByPk(id, {
+    const fee = await Fee.findOne({
+      where: {
+        id: id,
+        school_id: school_id, // REQUIRED - ensure fee belongs to school
+      },
       include: [{ model: Student, as: 'student' }],
     });
 
@@ -161,7 +171,16 @@ app.post('/:id/pay', async (req: Request, res: Response) => {
 // Get fee status distribution summary
 app.get('/summary/status-distribution', async (req: Request, res: Response) => {
   try {
+    const { school_id } = req.query;
+
+    if (!school_id) {
+      return res.status(400).json({ error: 'school_id is required' });
+    }
+
     const fees = await Fee.findAll({
+      where: {
+        school_id: school_id, // REQUIRED - always filter by school_id
+      },
       attributes: ['status'],
     });
 
@@ -212,9 +231,16 @@ app.get('/health', (req: Request, res: Response) => {
 app.post('/:id/payment/razorpay/create-order', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { amount } = z.object({ amount: z.number().positive() }).parse(req.body);
+    const { school_id, amount } = z.object({ 
+      school_id: z.string().uuid(),
+      amount: z.number().positive() 
+    }).parse(req.body);
 
-    const fee = await Fee.findByPk(id, {
+    const fee = await Fee.findOne({
+      where: {
+        id: id,
+        school_id: school_id, // REQUIRED - ensure fee belongs to school
+      },
       include: [{ model: Student, as: 'student' }],
     });
 
@@ -275,9 +301,16 @@ app.post('/:id/payment/razorpay/create-order', async (req: Request, res: Respons
 app.post('/:id/payment/stripe/create-intent', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { amount } = z.object({ amount: z.number().positive() }).parse(req.body);
+    const { school_id, amount } = z.object({ 
+      school_id: z.string().uuid(),
+      amount: z.number().positive() 
+    }).parse(req.body);
 
-    const fee = await Fee.findByPk(id, {
+    const fee = await Fee.findOne({
+      where: {
+        id: id,
+        school_id: school_id, // REQUIRED - ensure fee belongs to school
+      },
       include: [{ model: Student, as: 'student' }],
     });
 
@@ -337,8 +370,9 @@ app.post('/:id/payment/stripe/create-intent', async (req: Request, res: Response
 app.post('/:id/payment/verify', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { gateway, payment_id, order_id, signature } = z
+    const { school_id, gateway, payment_id, order_id, signature } = z
       .object({
+        school_id: z.string().uuid(),
         gateway: z.enum(['razorpay', 'stripe']),
         payment_id: z.string(),
         order_id: z.string(),
@@ -346,7 +380,11 @@ app.post('/:id/payment/verify', async (req: Request, res: Response) => {
       })
       .parse(req.body);
 
-    const fee = await Fee.findByPk(id, {
+    const fee = await Fee.findOne({
+      where: {
+        id: id,
+        school_id: school_id, // REQUIRED - ensure fee belongs to school
+      },
       include: [{ model: Student, as: 'student' }],
     });
 
@@ -533,12 +571,18 @@ app.post('/:id/payment-link', async (req: Request, res: Response) => {
 app.patch('/:id/postpone', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { new_due_date, reason } = z.object({
+    const { school_id, new_due_date, reason } = z.object({
+      school_id: z.string().uuid(),
       new_due_date: z.string().date(),
       reason: z.string().optional(),
     }).parse(req.body);
 
-    const fee = await Fee.findByPk(id);
+    const fee = await Fee.findOne({
+      where: {
+        id: id,
+        school_id: school_id, // REQUIRED - ensure fee belongs to school
+      },
+    });
     if (!fee) {
       return res.status(404).json({ error: 'Fee not found' });
     }
@@ -565,11 +609,16 @@ app.patch('/:id/postpone', async (req: Request, res: Response) => {
 app.post('/:id/reminder', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { method } = z.object({
+    const { school_id, method } = z.object({
+      school_id: z.string().uuid(),
       method: z.enum(['email', 'sms', 'both']).default('email'),
     }).parse(req.body);
 
-    const fee = await Fee.findByPk(id, {
+    const fee = await Fee.findOne({
+      where: {
+        id: id,
+        school_id: school_id, // REQUIRED - ensure fee belongs to school
+      },
       include: [{ model: Student, as: 'student' }],
     });
 

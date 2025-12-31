@@ -6,6 +6,9 @@ import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgChartsReact } from 'ag-charts-react';
 import { Search, Plus, BookOpen, TrendingUp, Eye, Download, BarChart3 } from 'lucide-react';
 import api from '../services/api';
+import { useAuthStore } from '../stores/authStore';
+import { useToast } from '../contexts/ToastContext';
+import { exportToCSV } from '../utils/export';
 import Input from '../components/Input/Input';
 import Button from '../components/Button/Button';
 import Card from '../components/Card/Card';
@@ -18,29 +21,36 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 const Exams: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const { showSuccess, showError } = useToast();
+  const schoolId = user?.school_id;
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [examTypeFilter, setExamTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'upcoming' | 'completed' | 'ongoing'>('all');
 
   const { data, isLoading } = useQuery(
-    ['exams', page, search, examTypeFilter, statusFilter],
+    ['exams', schoolId, page, search, examTypeFilter, statusFilter],
     async () => {
+      if (!schoolId) return { data: [], pagination: { total: 0 } };
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '50',
+        school_id: schoolId,
       });
       if (search) params.append('search', search);
       if (examTypeFilter !== 'all') params.append('exam_type', examTypeFilter);
       if (statusFilter !== 'all') params.append('status', statusFilter);
       const response = await api.get(`/exam?${params}`);
       return response.data;
-    }
+    },
+    { enabled: !!schoolId }
   );
 
   // Analytics query
-  const { data: analytics } = useQuery('exams-analytics', async () => {
-    const response = await api.get('/exam?limit=1000').catch(() => ({ data: { data: [] } }));
+  const { data: analytics } = useQuery(['exams-analytics', schoolId], async () => {
+    if (!schoolId) return { total: 0, upcoming: 0, ongoing: 0, completed: 0, typeDistribution: [] };
+    const response = await api.get(`/exam?school_id=${schoolId}&limit=1000`).catch(() => ({ data: { data: [] } }));
     const exams = response.data.data || [];
 
     const today = new Date();
@@ -92,9 +102,19 @@ const Exams: React.FC = () => {
   }), [analytics?.typeDistribution]);
 
   const handleExport = () => {
-    const csv = [
-      ['Exam Name', 'Type', 'Academic Year', 'Start Date', 'End Date', 'Max Marks', 'Passing Marks', 'Status'].join(','),
-      ...(data?.data || []).map((exam: any) => {
+    try {
+      const columns = [
+        { key: 'name', label: 'Exam Name' },
+        { key: 'exam_type', label: 'Type' },
+        { key: 'academic_year', label: 'Academic Year' },
+        { key: 'start_date', label: 'Start Date' },
+        { key: 'end_date', label: 'End Date' },
+        { key: 'max_marks', label: 'Max Marks' },
+        { key: 'passing_marks', label: 'Passing Marks' },
+        { key: 'status', label: 'Status' },
+      ];
+
+      const exportData = (data?.data || []).map((exam: any) => {
         const today = new Date();
         const startDate = new Date(exam.start_date);
         const endDate = new Date(exam.end_date);
@@ -102,26 +122,20 @@ const Exams: React.FC = () => {
         if (today >= startDate && today <= endDate) status = 'ongoing';
         else if (today > endDate) status = 'completed';
 
-        return [
-          exam.name,
-          exam.exam_type,
-          exam.academic_year,
-          exam.start_date,
-          exam.end_date,
-          exam.max_marks,
-          exam.passing_marks,
+        return {
+          ...exam,
           status,
-        ].join(',');
-      }),
-    ].join('\n');
+        };
+      });
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `exams-export-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+      exportToCSV(exportData, columns, {
+        filename: `exams-export-${new Date().toISOString().split('T')[0]}.csv`,
+      });
+
+      showSuccess('Exams data exported successfully!');
+    } catch (error) {
+      showError('Failed to export exams data');
+    }
   };
 
   const columnDefs: ColDef[] = useMemo(() => [
@@ -233,18 +247,37 @@ const Exams: React.FC = () => {
     {
       headerName: 'Actions',
       field: 'actions',
-      width: 120,
+      width: 60,
       pinned: 'right',
       cellRenderer: (params: ICellRendererParams) => (
-        <Button
-          size="sm"
-          variant="outline"
+        <button
           onClick={() => navigate(`/exams/${params.data.id}`)}
-          style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}
+          style={{
+            padding: '0.375rem',
+            border: '1px solid var(--color-border)',
+            background: 'transparent',
+            color: 'var(--color-text-secondary)',
+            borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-primary)';
+            e.currentTarget.style.color = 'var(--color-primary)';
+            e.currentTarget.style.backgroundColor = 'var(--color-primary)10';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-border)';
+            e.currentTarget.style.color = 'var(--color-text-secondary)';
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+          title="View Details"
         >
-          <Eye size={14} style={{ marginRight: '0.25rem' }} />
-          View
-        </Button>
+          <Eye size={16} strokeWidth={1.5} />
+        </button>
       ),
     },
   ], [navigate]);
@@ -263,10 +296,15 @@ const Exams: React.FC = () => {
           <p className={styles.subtitle}>Comprehensive exam tracking and analytics</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button icon={<Download size={18} />} variant="outline" onClick={handleExport}>
+          <Button icon={<Download size={18} />} variant="outline" onClick={handleExport} style={{ display: 'none' }}>
             Export
           </Button>
-          <Button icon={<Plus size={18} />}>Create Exam</Button>
+          <Button 
+            icon={<Plus size={18} />} 
+            onClick={() => showInfo('Create Exam feature coming soon!')}
+          >
+            Create Exam
+          </Button>
         </div>
       </div>
 
