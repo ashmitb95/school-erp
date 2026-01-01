@@ -190,3 +190,4 @@ const ClassDetail: React.FC = () => {
 export default ClassDetail;
 
 
+

@@ -1,0 +1,56 @@
+{
+  "domain": "staff",
+  "description": "Staff-related queries",
+  "table": "staff",
+  "primaryEntity": "staff",
+  "questionPatterns": [
+    {
+      "pattern": "(all|list|show) (staff|teachers|employees)",
+      "type": "simple",
+      "intent": "list_staff",
+      "sqlTemplate": "SELECT st.*, st.first_name, st.last_name, st.employee_id, st.designation, st.email, st.phone FROM staff st WHERE st.school_id = '<school_id>' AND st.is_active = true ORDER BY st.designation, st.last_name",
+      "variations": [
+        "all staff",
+        "list teachers",
+        "show employees"
+      ],
+      "keywords": ["staff", "teachers", "employees"]
+    },
+    {
+      "pattern": "staff by (designation|role) (.+)",
+      "type": "simple",
+      "intent": "list_staff_by_designation",
+      "sqlTemplate": "SELECT st.*, st.first_name, st.last_name, st.employee_id, st.designation FROM staff st WHERE st.school_id = '<school_id>' AND st.designation ILIKE '%<designation>%' AND st.is_active = true ORDER BY st.last_name",
+      "variations": [
+        "teachers",
+        "administrators",
+        "staff by role"
+      ],
+      "keywords": ["staff", "designation", "role"]
+    }
+  ],
+  "columnSynonyms": {
+    "teachers": {
+      "sql": "designation ILIKE '%teacher%'",
+      "description": "Staff with teacher designation"
+    },
+    "administrators": {
+      "sql": "designation ILIKE '%administrator%' OR designation ILIKE '%principal%'",
+      "description": "Administrative staff"
+    },
+    "active": {
+      "sql": "is_active = true",
+      "description": "Active staff member"
+    }
+  },
+  "businessLogic": {
+    "active_staff": {
+      "condition": "st.is_active = true",
+      "description": "Staff member is currently active"
+    }
+  },
+  "commonJoins": [],
+  "keywords": ["staff", "teacher", "teachers", "employee", "employees", "designation", "role"]
+}
+
+

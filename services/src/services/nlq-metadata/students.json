@@ -1,0 +1,76 @@
+{
+  "domain": "students",
+  "description": "Student information queries",
+  "table": "students",
+  "primaryEntity": "students",
+  "questionPatterns": [
+    {
+      "pattern": "students in (class|grade) (.+)",
+      "type": "simple",
+      "intent": "list_students_by_class",
+      "sqlTemplate": "SELECT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name FROM students s JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id>' AND c.school_id = '<school_id>' AND c.name ILIKE '%<class_name>%' AND s.is_active = true ORDER BY s.roll_number",
+      "variations": [
+        "students in class XII",
+        "students in grade 10",
+        "list students in class 5"
+      ],
+      "keywords": ["students", "class", "grade"]
+    },
+    {
+      "pattern": "(new|recent) students",
+      "type": "simple",
+      "intent": "list_new_students",
+      "sqlTemplate": "SELECT s.*, s.first_name, s.last_name, s.admission_number, s.admission_date, c.name as class_name FROM students s LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id>' AND s.admission_date >= CURRENT_DATE - INTERVAL '30 days' ORDER BY s.admission_date DESC",
+      "variations": [
+        "new students",
+        "recent admissions",
+        "newly admitted students"
+      ],
+      "keywords": ["students", "new", "recent"]
+    },
+    {
+      "pattern": "active students",
+      "type": "simple",
+      "intent": "list_active_students",
+      "sqlTemplate": "SELECT s.*, s.first_name, s.last_name, s.admission_number, c.name as class_name FROM students s LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id>' AND s.is_active = true ORDER BY c.name, s.roll_number",
+      "variations": [
+        "active students",
+        "all students",
+        "current students"
+      ],
+      "keywords": ["students", "active"]
+    }
+  ],
+  "columnSynonyms": {
+    "active": {
+      "sql": "is_active = true",
+      "description": "Active student"
+    },
+    "inactive": {
+      "sql": "is_active = false",
+      "description": "Inactive student"
+    },
+    "new": {
+      "sql": "admission_date >= CURRENT_DATE - INTERVAL '30 days'",
+      "description": "Recently admitted"
+    }
+  },
+  "businessLogic": {
+    "active_student": {
+      "condition": "s.is_active = true",
+      "description": "Student is currently active"
+    }
+  },
+  "commonJoins": [
+    {
+      "from": "students",
+      "to": "classes",
+      "on": "students.class_id = classes.id",
+      "alias": "s -> c",
+      "type": "LEFT"
+    }
+  ],
+  "keywords": ["students", "student", "admission", "class", "grade", "active", "new"]
+}
+
+

@@ -13,6 +13,7 @@ import api from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 
 // Get API base URL for fetch requests (SSE doesn't work with axios)
+// VITE_API_URL should include /api (e.g., https://backend.railway.app/api)
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 import Button from '../Button/Button';
 import Input from '../Input/Input';
@@ -177,6 +178,12 @@ const AIChatWidget: React.FC = () => {
         content: msg.content,
       }));
 
+      // Ensure school_id is in context
+      const contextWithSchoolId = {
+        ...(context || {}),
+        school_id: schoolId || context?.school_id,
+      };
+
       const response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
         method: 'POST',
         headers: {
@@ -185,7 +192,7 @@ const AIChatWidget: React.FC = () => {
         },
         body: JSON.stringify({
           message: query,
-          context: context || {},
+          context: contextWithSchoolId,
           conversationHistory: conversationHistory,
         }),
         signal: abortControllerRef.current.signal,
@@ -320,7 +327,134 @@ const AIChatWidget: React.FC = () => {
                     return updated;
                   });
                 }
-              } else if (data.type === 'data_query' || data.type === 'conversation' || data.type === 'error') {
+              } else if (currentEvent.startsWith('pipeline:')) {
+                // Handle pipeline events
+                const pipelineStage = currentEvent.replace('pipeline:', '');
+                
+                if (pipelineStage === 'stage') {
+                  // Stage transition
+                  const stageMessage = data.message || `Processing: ${data.stage}`;
+                  thoughtProcess.push(stageMessage);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (updated[lastIndex]?.role === 'assistant') {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        thoughtProcess: [...(updated[lastIndex].thoughtProcess || []), stageMessage],
+                      };
+                    }
+                    return updated;
+                  });
+                } else if (pipelineStage === 'intent') {
+                  // Intent clarification
+                  const intentMessage = data.message || `Intent: ${data.intent}`;
+                  thoughtProcess.push(intentMessage);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (updated[lastIndex]?.role === 'assistant') {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        thoughtProcess: [...(updated[lastIndex].thoughtProcess || []), intentMessage],
+                      };
+                    }
+                    return updated;
+                  });
+                } else if (pipelineStage === 'keywords') {
+                  // Keyword extraction
+                  const keywordMessage = data.message || `Keywords: ${(data.keywords || []).join(', ')}`;
+                  thoughtProcess.push(keywordMessage);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (updated[lastIndex]?.role === 'assistant') {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        thoughtProcess: [...(updated[lastIndex].thoughtProcess || []), keywordMessage],
+                      };
+                    }
+                    return updated;
+                  });
+                } else if (pipelineStage === 'disambiguation') {
+                  // Query disambiguation
+                  const disambiguationMessage = data.message || `Mapping to tables: ${(data.tables || []).join(', ')}`;
+                  thoughtProcess.push(disambiguationMessage);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (updated[lastIndex]?.role === 'assistant') {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        thoughtProcess: [...(updated[lastIndex].thoughtProcess || []), disambiguationMessage],
+                      };
+                    }
+                    return updated;
+                  });
+                } else if (pipelineStage === 'sql_preview') {
+                  // SQL preview
+                  generatedSQL = data.sql || '';
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (updated[lastIndex]?.role === 'assistant') {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        sql: generatedSQL,
+                      };
+                    }
+                    return updated;
+                  });
+                } else if (pipelineStage === 'validation') {
+                  // Query validation
+                  const validationMessage = data.message || (data.valid ? 'Query validated' : 'Query has issues');
+                  thoughtProcess.push(validationMessage);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (updated[lastIndex]?.role === 'assistant') {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        thoughtProcess: [...(updated[lastIndex].thoughtProcess || []), validationMessage],
+                      };
+                    }
+                    return updated;
+                  });
+                } else if (pipelineStage === 'clarification') {
+                  // Clarification needed
+                  const clarificationMessage = data.message || data.question || 'I need clarification';
+                  thoughtProcess.push(clarificationMessage);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (updated[lastIndex]?.role === 'assistant') {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        thoughtProcess: [...(updated[lastIndex].thoughtProcess || []), clarificationMessage],
+                        needsClarification: true,
+                        clarificationOptions: data.options,
+                      };
+                    }
+                    return updated;
+                  });
+                } else if (pipelineStage === 'error') {
+                  // Pipeline error
+                  errorMessage = data.message || data.error || 'Pipeline error';
+                  errorType = 'general';
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (updated[lastIndex]?.role === 'assistant') {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        error: errorMessage,
+                        errorType: errorType,
+                      };
+                    }
+                    return updated;
+                  });
+                }
+              } else if (data.type === 'data_query' || data.type === 'conversation' || data.type === 'error' || data.type === 'clarification_needed') {
                 if (queryData.length > 0) {
                   setMessages((prev) => {
                     const updated = [...prev];
@@ -400,9 +534,14 @@ const AIChatWidget: React.FC = () => {
         headerName: key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
         field: key,
         flex: 1,
-        minWidth: 100,
+        minWidth: 80,
+        maxWidth: 200,
+        sortable: true,
+        filter: false, // Disable filters in widget for space
+        resizable: true,
         cellRenderer,
         valueFormatter,
+        tooltipValueGetter: (params: any) => params.value,
       };
     });
   };
@@ -512,13 +651,27 @@ const AIChatWidget: React.FC = () => {
                               <span>Results ({message.dataCount || message.data.length} rows)</span>
                             </div>
                             <div className={styles.dataTable}>
-                              <AgGridReact
-                                columnDefs={generateColumnDefs(message.data)}
-                                rowData={message.data}
-                                defaultColDef={{ sortable: true, filter: true, resizable: true }}
-                                domLayout="autoHeight"
-                                gridOptions={{ suppressCellFocus: true } as GridOptions}
-                              />
+                              <div className="ag-theme-alpine" style={{ width: '100%', height: '300px' }}>
+                                <AgGridReact
+                                  columnDefs={generateColumnDefs(message.data)}
+                                  rowData={message.data}
+                                  defaultColDef={{ 
+                                    sortable: true, 
+                                    filter: true, 
+                                    resizable: true,
+                                    minWidth: 80,
+                                    flex: 1,
+                                  }}
+                                  domLayout="normal"
+                                  gridOptions={{ 
+                                    suppressCellFocus: true,
+                                    enableCellTextSelection: true,
+                                    animateRows: true,
+                                  } as GridOptions}
+                                  suppressHorizontalScroll={false}
+                                  suppressMenuHide={true}
+                                />
+                              </div>
                             </div>
                           </div>
                         )}

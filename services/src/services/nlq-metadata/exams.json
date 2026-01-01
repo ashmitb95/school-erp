@@ -1,0 +1,98 @@
+{
+  "domain": "exams",
+  "description": "Exam and results queries",
+  "table": "exams",
+  "primaryEntity": "students",
+  "questionPatterns": [
+    {
+      "pattern": "(top|best|highest) (students|performers) (by|in) (exam|marks|results)",
+      "type": "complex",
+      "intent": "top_students_by_exam",
+      "sqlTemplate": "SELECT s.*, s.first_name, s.last_name, s.admission_number, c.name as class_name, AVG(er.marks_obtained * 100.0 / NULLIF(er.max_marks, 0)) as avg_percentage FROM students s JOIN exam_results er ON s.id = er.student_id JOIN exams e ON er.exam_id = e.id LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id>' AND e.school_id = '<school_id>' GROUP BY s.id, s.first_name, s.last_name, s.admission_number, c.name ORDER BY avg_percentage DESC LIMIT 10",
+      "variations": [
+        "top 10 students by exam marks",
+        "best performing students",
+        "highest scoring students"
+      ],
+      "keywords": ["students", "top", "best", "exam", "marks"]
+    },
+    {
+      "pattern": "(failing|failed|low) students (in|by) (exam|marks)",
+      "type": "complex",
+      "intent": "failing_students",
+      "sqlTemplate": "SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, c.name as class_name, er.marks_obtained, er.max_marks, er.grade FROM students s JOIN exam_results er ON s.id = er.student_id JOIN exams e ON er.exam_id = e.id LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id>' AND e.school_id = '<school_id>' AND (er.marks_obtained * 100.0 / NULLIF(er.max_marks, 0)) < e.passing_marks ORDER BY er.marks_obtained ASC",
+      "variations": [
+        "failing students",
+        "students who failed",
+        "low performing students"
+      ],
+      "keywords": ["students", "failing", "failed", "low", "exam"]
+    },
+    {
+      "pattern": "exam results (for|of) (.+)",
+      "type": "simple",
+      "intent": "exam_results",
+      "description": "Get exam results for a specific exam or student",
+      "keywords": ["exam", "results"]
+    }
+  ],
+  "columnSynonyms": {
+    "failing": {
+      "sql": "(marks_obtained * 100.0 / NULLIF(max_marks, 0)) < passing_marks",
+      "description": "Student failed the exam"
+    },
+    "passed": {
+      "sql": "(marks_obtained * 100.0 / NULLIF(max_marks, 0)) >= passing_marks",
+      "description": "Student passed the exam"
+    },
+    "top": {
+      "sql": "ORDER BY marks_obtained DESC",
+      "description": "Highest marks first"
+    }
+  },
+  "businessLogic": {
+    "top_performer": {
+      "condition": "AVG(er.marks_obtained * 100.0 / NULLIF(er.max_marks, 0))",
+      "join": "JOIN exam_results er ON s.id = er.student_id JOIN exams e ON er.exam_id = e.id",
+      "description": "Student with high average marks"
+    },
+    "failing_student": {
+      "condition": "(er.marks_obtained * 100.0 / NULLIF(er.max_marks, 0)) < e.passing_marks",
+      "join": "JOIN exam_results er ON s.id = er.student_id JOIN exams e ON er.exam_id = e.id",
+      "description": "Student who failed exam"
+    }
+  },
+  "commonJoins": [
+    {
+      "from": "students",
+      "to": "exam_results",
+      "on": "students.id = exam_results.student_id",
+      "alias": "s -> er",
+      "type": "INNER"
+    },
+    {
+      "from": "exam_results",
+      "to": "exams",
+      "on": "exam_results.exam_id = exams.id",
+      "alias": "er -> e",
+      "type": "INNER"
+    },
+    {
+      "from": "students",
+      "to": "classes",
+      "on": "students.class_id = classes.id",
+      "alias": "s -> c",
+      "type": "LEFT"
+    },
+    {
+      "from": "exam_results",
+      "to": "subjects",
+      "on": "exam_results.subject_id = subjects.id",
+      "alias": "er -> sub",
+      "type": "LEFT"
+    }
+  ],
+  "keywords": ["exam", "exams", "results", "marks", "grade", "performance", "top", "failing", "passed"]
+}
+
+

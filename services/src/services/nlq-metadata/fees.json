@@ -1,0 +1,92 @@
+{
+  "domain": "fees",
+  "description": "Fee-related queries",
+  "table": "fees",
+  "primaryEntity": "students",
+  "questionPatterns": [
+    {
+      "pattern": "(pending|unpaid|overdue) fees",
+      "type": "simple",
+      "intent": "list_pending_fees",
+      "sqlTemplate": "SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, f.amount, f.due_date, f.fee_type, f.status FROM students s JOIN fees f ON s.id = f.student_id LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id>' AND f.school_id = '<school_id>' AND f.status IN ('pending', 'partial') ORDER BY f.due_date DESC, s.last_name",
+      "variations": [
+        "pending fees",
+        "unpaid fees",
+        "overdue fees",
+        "students with pending fees"
+      ],
+      "keywords": ["fees", "pending", "unpaid", "overdue"]
+    },
+    {
+      "pattern": "fees (paid|collected) (today|this week|this month)",
+      "type": "simple",
+      "intent": "list_paid_fees",
+      "sqlTemplate": "SELECT DISTINCT s.*, s.first_name, s.last_name, f.amount, f.paid_date, f.fee_type, f.status FROM students s JOIN fees f ON s.id = f.student_id WHERE s.school_id = '<school_id>' AND f.school_id = '<school_id>' AND f.status = 'paid' AND f.paid_date >= '<date_start>' ORDER BY f.paid_date DESC",
+      "variations": [
+        "fees paid today",
+        "fee collection this week"
+      ],
+      "keywords": ["fees", "paid", "collected"]
+    },
+    {
+      "pattern": "students with (pending|unpaid|overdue) fees",
+      "type": "simple",
+      "intent": "list_students_pending_fees",
+      "sqlTemplate": "SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, c.name as class_name, SUM(f.amount) as total_pending FROM students s JOIN fees f ON s.id = f.student_id LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id>' AND f.school_id = '<school_id>' AND f.status IN ('pending', 'partial') GROUP BY s.id, s.first_name, s.last_name, s.admission_number, c.name ORDER BY total_pending DESC",
+      "variations": [
+        "students with pending fees",
+        "students with unpaid fees"
+      ],
+      "keywords": ["students", "fees", "pending", "unpaid"]
+    }
+  ],
+  "columnSynonyms": {
+    "pending": {
+      "sql": "status IN ('pending', 'partial')",
+      "description": "Fee is pending or partially paid"
+    },
+    "unpaid": {
+      "sql": "status IN ('pending', 'partial')",
+      "description": "Fee is unpaid"
+    },
+    "overdue": {
+      "sql": "status IN ('pending', 'partial') AND due_date < CURRENT_DATE",
+      "description": "Fee is overdue"
+    },
+    "paid": {
+      "sql": "status = 'paid'",
+      "description": "Fee is paid"
+    }
+  },
+  "businessLogic": {
+    "pending_fee": {
+      "condition": "f.status IN ('pending', 'partial')",
+      "join": "JOIN fees f ON s.id = f.student_id",
+      "description": "Student has pending fees"
+    },
+    "overdue_fee": {
+      "condition": "f.status IN ('pending', 'partial') AND f.due_date < CURRENT_DATE",
+      "join": "JOIN fees f ON s.id = f.student_id",
+      "description": "Student has overdue fees"
+    }
+  },
+  "commonJoins": [
+    {
+      "from": "students",
+      "to": "fees",
+      "on": "students.id = fees.student_id",
+      "alias": "s -> f",
+      "type": "INNER"
+    },
+    {
+      "from": "students",
+      "to": "classes",
+      "on": "students.class_id = classes.id",
+      "alias": "s -> c",
+      "type": "LEFT"
+    }
+  ],
+  "keywords": ["fees", "fee", "payment", "pending", "unpaid", "paid", "overdue", "due", "collection"]
+}
+
+

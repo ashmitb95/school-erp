@@ -1,0 +1,92 @@
+{
+  "domain": "common",
+  "description": "Shared patterns and utilities for all domains",
+  "temporalPatterns": {
+    "today": {
+      "sql": "CURRENT_DATE",
+      "description": "Current date"
+    },
+    "yesterday": {
+      "sql": "CURRENT_DATE - INTERVAL '1 day'",
+      "description": "Previous day"
+    },
+    "this week": {
+      "sql": "date >= CURRENT_DATE - INTERVAL '7 days'",
+      "description": "Last 7 days"
+    },
+    "last week": {
+      "sql": "date >= CURRENT_DATE - INTERVAL '14 days' AND date < CURRENT_DATE - INTERVAL '7 days'",
+      "description": "Week before last"
+    },
+    "this month": {
+      "sql": "date >= DATE_TRUNC('month', CURRENT_DATE)",
+      "description": "Current month"
+    },
+    "last month": {
+      "sql": "date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month' AND date < DATE_TRUNC('month', CURRENT_DATE)",
+      "description": "Previous month"
+    },
+    "this year": {
+      "sql": "date >= DATE_TRUNC('year', CURRENT_DATE)",
+      "description": "Current year"
+    }
+  },
+  "countPatterns": {
+    "how many": {
+      "type": "count",
+      "description": "Count query pattern"
+    },
+    "number of": {
+      "type": "count",
+      "description": "Count query pattern"
+    },
+    "count": {
+      "type": "count",
+      "description": "Count query pattern"
+    }
+  },
+  "commonEntities": {
+    "students": {
+      "table": "students",
+      "alias": "s",
+      "description": "Student records"
+    },
+    "classes": {
+      "table": "classes",
+      "alias": "c",
+      "description": "Class/grade information"
+    },
+    "fees": {
+      "table": "fees",
+      "alias": "f",
+      "description": "Fee records"
+    },
+    "attendances": {
+      "table": "attendances",
+      "alias": "a",
+      "description": "Attendance records"
+    },
+    "exams": {
+      "table": "exams",
+      "alias": "e",
+      "description": "Exam information"
+    },
+    "exam_results": {
+      "table": "exam_results",
+      "alias": "er",
+      "description": "Exam results"
+    },
+    "staff": {
+      "table": "staff",
+      "alias": "st",
+      "description": "Staff records"
+    },
+    "subjects": {
+      "table": "subjects",
+      "alias": "sub",
+      "description": "Subject information"
+    }
+  }
+}
+
+

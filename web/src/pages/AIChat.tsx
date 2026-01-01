@@ -13,6 +13,7 @@ import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 
 // Get API base URL for fetch requests (SSE doesn't work with axios)
+// VITE_API_URL should include /api (e.g., https://backend.railway.app/api)
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 import Button from '../components/Button/Button';
 import Input from '../components/Input/Input';
@@ -633,9 +634,11 @@ const AIChat: React.FC = () => {
         filter: true,
         resizable: true,
         flex: 1,
-        minWidth: 100,
+        minWidth: 120,
+        maxWidth: 300,
         valueFormatter,
         cellRenderer,
+        tooltipValueGetter: (params: any) => params.value,
       };
     });
 
@@ -899,12 +902,23 @@ const AIChat: React.FC = () => {
                           <Database size={14} />
                           <span>Query Results ({message.dataCount !== undefined ? message.dataCount : message.data.length} {(message.dataCount !== undefined ? message.dataCount : message.data.length) === 1 ? 'row' : 'rows'})</span>
                         </div>
-                        <div className="ag-theme-alpine" style={{ height: '400px', width: '100%', marginTop: '0.75rem' }}>
+                        <div className="ag-theme-alpine" style={{ height: '500px', width: '100%', marginTop: '0.75rem' }}>
                           <AgGridReact
                             rowData={message.data}
                             columnDefs={generateColumnDefs(message.data)}
-                            defaultColDef={defaultColDef}
-                            gridOptions={gridOptions}
+                            defaultColDef={{
+                              ...defaultColDef,
+                              minWidth: 100,
+                              flex: 1,
+                            }}
+                            gridOptions={{
+                              ...gridOptions,
+                              enableCellTextSelection: true,
+                              suppressCellFocus: true,
+                              animateRows: true,
+                            }}
+                            suppressHorizontalScroll={false}
+                            suppressMenuHide={true}
                             getRowId={(params) => {
                               // Try to find an ID field
                               if (params.data.id) return params.data.id;

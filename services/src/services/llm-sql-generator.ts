@@ -144,26 +144,90 @@ export class LLMSQLGenerator {
 DATABASE SCHEMA:
 ${schema}
 
+IMPORTANT: The schema above contains detailed column metadata with descriptions. Use these descriptions to intelligently match user queries to relevant columns. For example:
+- If a query mentions "contact" or "phone", look for columns with "phone" in their description
+- If a query mentions "parent", look for columns with "father" or "mother" in their description
+- If a query mentions "email", look for columns with "email" in their description
+- If a query mentions "address" or "location", look for columns with "address", "city", "state", "pincode" in their descriptions
+- Always read the column descriptions to understand what data each column contains
+
 EXAMPLE VALUES FROM DATABASE:
 ${JSON.stringify(examples, null, 2)}
 ${historyContext}
 
+CRITICAL QUERY TYPE UNDERSTANDING:
+You must distinguish between COUNT queries and LIST queries based on the user's intent:
+
+COUNT QUERIES (use COUNT(DISTINCT ...)):
+- ONLY use COUNT when the query explicitly asks for "how many", "number of", or "count" WITHOUT asking for specific fields
+- "how many students are absent today" → SELECT COUNT(DISTINCT s.id) as count FROM ...
+- "number of students with pending fees" → SELECT COUNT(DISTINCT s.id) as count FROM ...
+- "count the students" → SELECT COUNT(DISTINCT s.id) as count FROM ...
+- These queries want ONLY a number, not the actual records
+
+LIST QUERIES (return full records with specific fields):
+- If the query asks for SPECIFIC FIELDS (like "contact numbers", "names", "addresses"), it's ALWAYS a LIST query, NOT a count
+- "contact numbers of students absent today" → SELECT DISTINCT s.first_name, s.last_name, s.father_name, s.father_phone, s.mother_name, s.mother_phone, s.emergency_contact_name, s.emergency_contact_phone, c.name as class_name FROM ...
+- "which students are absent today" → SELECT DISTINCT s.id, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, a.status, a.date FROM ...
+- "show me students absent today" → SELECT DISTINCT s.id, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name FROM ...
+- "list students with pending fees" → SELECT DISTINCT s.id, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, f.amount, f.due_date, f.fee_type FROM ...
+- "give me parent contact numbers of students absent today" → SELECT DISTINCT s.first_name, s.last_name, s.father_name, s.father_phone, s.mother_name, s.mother_phone, s.emergency_contact_name, s.emergency_contact_phone, c.name as class_name FROM ...
+- These queries want the ACTUAL RECORDS with relevant fields
+
+COLUMN SELECTION FOR LIST QUERIES:
+You must intelligently analyze the query and select ONLY the relevant columns from the schema metadata above. Follow these steps:
+
+1. ANALYZE THE QUERY:
+   - Identify what specific information the user is requesting (e.g., "contact numbers", "addresses", "names", "parent details", "guardian info")
+   - Look for keywords that indicate specific data needs (contact, phone, email, address, location, parent, guardian, name, etc.)
+
+2. MAP TO COLUMN METADATA:
+   - Review the column descriptions in the DATABASE SCHEMA section above
+   - Match the query intent to relevant columns based on their descriptions
+   - For example:
+     * "contact numbers" or "phone" → Look for columns with "phone" in description (father_phone, mother_phone, guardian_phone, emergency_contact_phone)
+     * "parent" → Look for columns with "father" or "mother" in description (father_name, father_phone, mother_name, mother_phone, father_email, mother_email)
+     * "guardian" → Look for columns with "guardian" in description (guardian_name, guardian_phone, guardian_email)
+     * "address" or "location" → Look for columns with "address", "city", "state", "pincode" in descriptions
+     * "email" → Look for columns with "email" in description (father_email, mother_email, guardian_email)
+
+3. SELECT COLUMNS INTELLIGENTLY:
+   - Include ALL columns that match the query intent (don't miss related fields)
+   - Always include basic identifiers for context: id, first_name, last_name, admission_number, roll_number (when querying students)
+   - Always include class_name (c.name) when querying students by joining with classes table
+   - DO NOT use SELECT * - explicitly list only the fields needed
+   - Use DISTINCT to avoid duplicates when joining multiple tables
+
+4. EXAMPLES OF INTELLIGENT COLUMN SELECTION:
+   - Query: "contact numbers of students absent today"
+     * Analyze: User wants phone numbers
+     * Map: Find all phone-related columns in students table: father_phone, mother_phone, emergency_contact_phone, guardian_phone
+     * Select: s.first_name, s.last_name, s.father_name, s.father_phone, s.mother_name, s.mother_phone, s.emergency_contact_name, s.emergency_contact_phone, s.guardian_name, s.guardian_phone, c.name as class_name
+   
+   - Query: "parent email addresses of students with pending fees"
+     * Analyze: User wants parent email addresses
+     * Map: Find email columns related to parents: father_email, mother_email
+     * Select: s.first_name, s.last_name, s.father_name, s.father_email, s.mother_name, s.mother_email, c.name as class_name, f.amount, f.due_date, f.fee_type
+   
+   - Query: "addresses of students in Class XII"
+     * Analyze: User wants address information
+     * Map: Find address-related columns: address, city, state, pincode
+     * Select: s.first_name, s.last_name, s.admission_number, s.address, s.city, s.state, s.pincode, c.name as class_name
+
 THINKING PROCESS:
-Before generating SQL, think about what the user really wants:
-1. If they ask "how many" or "count", they want to SEE the actual records, not just a number. Always return full records with all relevant details.
-2. If they ask about students, include student details (name, admission number, class, etc.)
-3. If they ask about fees, include fee details (amount, due date, status, fee type)
-4. If they ask about attendance, include attendance details (date, status, class)
-5. Always include context - if querying students, show their class. If querying fees, show student info.
-6. Use DISTINCT when needed to avoid duplicate rows (e.g., when joining fees to students)
-7. Order results logically - by date (most recent first), by name (alphabetical), or by amount (highest first)
-8. CRITICAL FOR RATIOS/PERCENTAGES: If the user asks for a "ratio" or "percentage", you have two options:
-   a) Generate SQL that directly calculates the ratio/percentage using GROUP BY and aggregate functions (preferred)
-   b) Generate SQL that returns data grouped by the relevant categories (e.g., stream, type, status) so the ratio can be calculated from the results
-   For example, for "ratio of science to arts students", you could:
-   - Option A (preferred): SELECT stream, COUNT(DISTINCT student_id) as count FROM (...) GROUP BY stream
-   - Option B: Return all records with a 'stream' field that categorizes each record, and the system will calculate the ratio
-   Always include a categorization field (like 'stream', 'category', 'type') when the query involves ratios or comparisons
+1. First, check if the query asks for SPECIFIC FIELDS (contact numbers, names, addresses, emails, etc.)
+   - If YES → It's a LIST query, NOT a count query, even if it says "how many"
+   - If NO and query says "how many"/"number of"/"count" → It's a COUNT query
+2. For COUNT queries: Use COUNT(DISTINCT id) and return only the count field
+3. For LIST queries: 
+   a. Analyze the query to understand what specific information is requested
+   b. Review the DATABASE SCHEMA column metadata to find columns that match the query intent
+   c. Select ALL relevant columns based on their descriptions (not just exact keyword matches)
+   d. Always include basic identifiers (id, first_name, last_name, admission_number, roll_number) for context
+   e. Always include class_name when querying students by joining with classes table
+   f. Include related fields that provide context (e.g., if querying fees, include fee amount, due_date, fee_type)
+4. Use DISTINCT when joining tables that might create duplicates
+5. Order results logically - by date (most recent first), by name (alphabetical), or by amount (highest first)
 
 IMPORTANT RULES:
 1. Only generate SELECT queries - never INSERT, UPDATE, DELETE, DROP, or ALTER
@@ -174,25 +238,39 @@ IMPORTANT RULES:
 6. Use proper table aliases (s for students, c for classes, a for attendances, f for fees, etc.)
 7. Return only the SQL query, no explanations, no markdown, just pure SQL
 8. CRITICAL: Table names are PLURAL - use 'attendances' (NOT 'attendance'), 'students', 'classes', 'fees', 'exams', 'exam_results', 'staff', 'subjects', 'schools'
-9. CRITICAL: For "how many" queries, return FULL RECORDS, not COUNT(*). The user wants to see the actual data.
-10. Always include ORDER BY for predictable, useful sorting
-11. Use DISTINCT when joining tables that might create duplicates (e.g., students with multiple fees)
+9. Always include ORDER BY for predictable, useful sorting
+10. Use DISTINCT when joining tables that might create duplicates (e.g., students with multiple fees)
 
 EXAMPLES OF QUERIES:
-- "show me which students in Class XII are absent today"
-  SQL: SELECT DISTINCT s.*, c.name as class_name, a.status, a.date FROM students s JOIN classes c ON s.class_id = c.id LEFT JOIN attendances a ON s.id = a.student_id AND a.date = CURRENT_DATE WHERE s.school_id = '<school_id_from_context>' AND c.name ILIKE '%XII%' AND (a.status = 'absent' OR a.status IS NULL) ORDER BY s.roll_number
+
+COUNT QUERY EXAMPLE:
+- "how many students are absent today"
+  SQL: SELECT COUNT(DISTINCT s.id) as count FROM students s JOIN attendances a ON s.id = a.student_id WHERE s.school_id = '<school_id_from_context>' AND a.school_id = '<school_id_from_context>' AND a.date = CURRENT_DATE AND a.status = 'absent'
+
+LIST QUERY EXAMPLES:
+- "which students are absent today"
+  SQL: SELECT DISTINCT s.id, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, a.status, a.date FROM students s JOIN classes c ON s.class_id = c.id JOIN attendances a ON s.id = a.student_id WHERE s.school_id = '<school_id_from_context>' AND a.school_id = '<school_id_from_context>' AND a.date = CURRENT_DATE AND a.status = 'absent' ORDER BY c.name, s.roll_number
+
+- "contact numbers of students absent today"
+  Analysis: Query requests phone numbers. From schema metadata, students table has: father_phone, mother_phone, emergency_contact_phone, guardian_phone (all phone-related columns)
+  SQL: SELECT DISTINCT s.id, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, s.father_name, s.father_phone, s.mother_name, s.mother_phone, s.emergency_contact_name, s.emergency_contact_phone, s.guardian_name, s.guardian_phone FROM students s JOIN classes c ON s.class_id = c.id JOIN attendances a ON s.id = a.student_id WHERE s.school_id = '<school_id_from_context>' AND a.school_id = '<school_id_from_context>' AND a.date = CURRENT_DATE AND a.status = 'absent' ORDER BY c.name, s.roll_number
+
+- "give me the parent contact numbers of the students who are absent today"
+  Analysis: Query specifically requests "parent" contact numbers. From schema metadata, parent-related phone columns are: father_phone, mother_phone. Also include parent names for context.
+  SQL: SELECT DISTINCT s.id, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, s.father_name, s.father_phone, s.mother_name, s.mother_phone FROM students s JOIN classes c ON s.class_id = c.id JOIN attendances a ON s.id = a.student_id WHERE s.school_id = '<school_id_from_context>' AND a.school_id = '<school_id_from_context>' AND a.date = CURRENT_DATE AND a.status = 'absent' ORDER BY c.name, s.roll_number
+
+- "parent email addresses of students with pending fees"
+  Analysis: Query requests parent email addresses. From schema metadata, parent email columns are: father_email, mother_email. Include parent names and fee details for context.
+  SQL: SELECT DISTINCT s.id, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, s.father_name, s.father_email, s.mother_name, s.mother_email, f.amount, f.due_date, f.fee_type FROM students s JOIN classes c ON s.class_id = c.id JOIN fees f ON s.id = f.student_id WHERE s.school_id = '<school_id_from_context>' AND f.school_id = '<school_id_from_context>' AND f.status = 'pending' ORDER BY f.due_date DESC, s.last_name
 
 - "students with pending fees"
-  SQL: SELECT DISTINCT s.*, f.amount, f.due_date, f.fee_type, f.status FROM students s JOIN fees f ON s.id = f.student_id WHERE s.school_id = '<school_id_from_context>' AND f.school_id = '<school_id_from_context>' AND f.status = 'pending' ORDER BY f.due_date DESC, s.last_name
+  SQL: SELECT DISTINCT s.id, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, f.amount, f.due_date, f.fee_type, f.status FROM students s JOIN classes c ON s.class_id = c.id JOIN fees f ON s.id = f.student_id WHERE s.school_id = '<school_id_from_context>' AND f.school_id = '<school_id_from_context>' AND f.status = 'pending' ORDER BY f.due_date DESC, s.last_name
 
 - "how many students have unpaid library fees in the last month?"
-  SQL: SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, f.amount, f.due_date, f.fee_type, f.status FROM students s JOIN fees f ON s.id = f.student_id LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id_from_context>' AND f.school_id = '<school_id_from_context>' AND f.fee_type = 'library' AND f.status IN ('pending', 'partial') AND f.due_date >= CURRENT_DATE - INTERVAL '1 month' ORDER BY f.due_date DESC, s.last_name
+  SQL: SELECT COUNT(DISTINCT s.id) as count FROM students s JOIN fees f ON s.id = f.student_id WHERE s.school_id = '<school_id_from_context>' AND f.school_id = '<school_id_from_context>' AND f.fee_type = 'library' AND f.status IN ('pending', 'partial') AND f.due_date >= CURRENT_DATE - INTERVAL '1 month'
 
 - "top 10 students by exam marks"
-  SQL: SELECT s.*, s.first_name, s.last_name, s.admission_number, c.name as class_name, AVG(er.marks_obtained * 100.0 / NULLIF(er.max_marks, 0)) as avg_percentage FROM students s JOIN exam_results er ON s.id = er.student_id JOIN exams e ON er.exam_id = e.id LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id_from_context>' AND e.school_id = '<school_id_from_context>' GROUP BY s.id, s.first_name, s.last_name, s.admission_number, c.name ORDER BY avg_percentage DESC LIMIT 10
-
-- "list all students absent today"
-  SQL: SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, a.status, a.date FROM students s JOIN classes c ON s.class_id = c.id JOIN attendances a ON s.id = a.student_id WHERE s.school_id = '<school_id_from_context>' AND a.school_id = '<school_id_from_context>' AND a.date = CURRENT_DATE AND a.status = 'absent' ORDER BY c.name, s.roll_number
+  SQL: SELECT s.id, s.first_name, s.last_name, s.admission_number, c.name as class_name, AVG(er.marks_obtained * 100.0 / NULLIF(er.max_marks, 0)) as avg_percentage FROM students s JOIN exam_results er ON s.id = er.student_id JOIN exams e ON er.exam_id = e.id LEFT JOIN classes c ON s.class_id = c.id WHERE s.school_id = '<school_id_from_context>' AND e.school_id = '<school_id_from_context>' GROUP BY s.id, s.first_name, s.last_name, s.admission_number, c.name ORDER BY avg_percentage DESC LIMIT 10
 
 - "what is the ratio of science students to arts students?"
   SQL: SELECT 
@@ -215,11 +293,26 @@ EXAMPLES OF QUERIES:
 
 USER QUERY: "${query}"
 
-Think about what data the user wants to see. If they ask for ratios, percentages, or comparisons, either:
-1. Generate SQL that directly calculates the metric using GROUP BY and aggregates (preferred)
-2. Generate SQL that includes a categorization field (like 'stream', 'category', 'type') so the ratio can be calculated from the results
+ANALYSIS REQUIRED:
+1. Does the query ask for SPECIFIC FIELDS (contact numbers, names, addresses, phone, parent, etc.)?
+   - If YES → It's a LIST query, return those specific fields (NOT a count)
+   - If NO → Check if it says "how many"/"number of"/"count" → Then it's a COUNT query
+2. If COUNT: Use COUNT(DISTINCT id) as count and return only the count field
+3. If LIST: 
+   - Identify ALL fields mentioned or implied in the query
+   - "contact numbers" → Include: father_phone, mother_phone, emergency_contact_phone, father_name, mother_name, emergency_contact_name
+   - "names" or "student names" → Include: first_name, last_name
+   - "address" → Include: address, city, state, pincode
+   - Always include: id, first_name, last_name, admission_number, roll_number, class_name
+   - DO NOT use SELECT * - explicitly list only the needed fields
+   - Join necessary tables to get related data
+4. Always filter by school_id = '<school_id_from_context>' for data isolation
+5. Use DISTINCT when joining multiple tables to avoid duplicates
+6. Add ORDER BY for logical sorting (usually by class_name, then roll_number for students)
 
-Then generate the SQL query:`;
+CRITICAL: If the query asks for specific fields like "contact numbers", it's ALWAYS a LIST query, never a COUNT query.
+
+Generate the SQL query now:`;
   }
 
   /**
@@ -521,11 +614,21 @@ Then generate the SQL query:`;
    * Sanitize and validate SQL
    */
   private sanitizeSQL(sql: string): string {
-    // Remove markdown code blocks if present
+    // Remove markdown code blocks if present (handle various formats)
     sql = sql.replace(/```sql\n?/gi, '').replace(/```\n?/g, '').trim();
     
     // Remove any leading/trailing whitespace and newlines
     sql = sql.trim();
+
+    // Extract SQL from text if LLM added explanations
+    // Look for SQL statement starting with SELECT
+    const selectMatch = sql.match(/(SELECT[\s\S]*?)(?:;|$)/i);
+    if (selectMatch) {
+      sql = selectMatch[1].trim();
+    }
+
+    // Remove any trailing semicolons
+    sql = sql.replace(/;+$/, '').trim();
 
     // Remove dangerous keywords
     const dangerous = ['DROP', 'DELETE', 'TRUNCATE', 'ALTER', 'CREATE', 'INSERT', 'UPDATE', 'GRANT', 'REVOKE'];
@@ -538,17 +641,81 @@ Then generate the SQL query:`;
     }
 
     // Only allow SELECT statements
-    if (!upperSQL.trim().startsWith('SELECT')) {
-      throw new Error('Only SELECT queries are allowed');
+    const trimmedUpperSQL = upperSQL.trim();
+    if (!trimmedUpperSQL.startsWith('SELECT')) {
+      console.error('[LLM SQL Generator] Invalid SQL received (does not start with SELECT):', sql.substring(0, 200));
+      throw new Error('Only SELECT queries are allowed. The generated SQL must start with SELECT.');
     }
 
     return sql;
   }
 
   /**
-   * Generate SQL from natural language query
+   * Build a retry prompt with error feedback
    */
-  async generateSQL(query: string, context?: any, conversationHistory?: Array<{ role: string; content: string }>): Promise<SQLGenerationResult | null> {
+  private async buildRetryPrompt(
+    query: string,
+    context?: any,
+    conversationHistory?: Array<{ role: string; content: string }>,
+    previousError?: string,
+    previousSQL?: string,
+    attemptNumber: number = 1
+  ): Promise<string> {
+    const schema = getSchemaContext();
+    const examples = await this.getExampleValues();
+    
+    let historyContext = '';
+    if (conversationHistory && conversationHistory.length > 0) {
+      historyContext = '\n\nCONVERSATION HISTORY:\n';
+      conversationHistory.slice(-10).forEach((msg) => {
+        historyContext += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+      });
+    }
+
+    return `You previously generated SQL for this query, but it failed with an error. Please fix the SQL query.
+
+DATABASE SCHEMA:
+${schema}
+
+EXAMPLE VALUES FROM DATABASE:
+${JSON.stringify(examples, null, 2)}
+${historyContext}
+
+ORIGINAL USER QUERY: "${query}"
+
+PREVIOUS SQL (ATTEMPT ${attemptNumber - 1}) THAT FAILED:
+${previousSQL}
+
+ERROR MESSAGE:
+${previousError}
+
+INSTRUCTIONS:
+1. Analyze the error message carefully
+2. Fix the SQL syntax or logic issue
+3. Ensure all table names are PLURAL (students, attendances, classes, fees, exams, exam_results, staff, subjects, schools)
+4. Ensure all column names match the schema exactly
+5. Ensure all JOINs are correct
+6. Ensure all WHERE conditions use proper syntax
+7. Return ONLY the corrected SQL query, no explanations, no markdown, just pure SQL
+8. The query must start with SELECT
+9. Always include school_id filters: s.school_id = '<school_id_from_context>' for all relevant tables
+
+Generate the CORRECTED SQL query now:`;
+  }
+
+  /**
+   * Generate SQL from natural language query with error retry capability
+   * IMPORTANT: This should ONLY be called when we've determined the query needs data
+   * If SQL is generated, it MUST be executed and data MUST be returned
+   */
+  async generateSQL(
+    query: string, 
+    context?: any, 
+    conversationHistory?: Array<{ role: string; content: string }>,
+    previousError?: string,
+    previousSQL?: string,
+    attemptNumber: number = 1
+  ): Promise<SQLGenerationResult | null> {
     try {
       // Extract school_id from context - REQUIRED for all queries
       const schoolId = context?.school_id;
@@ -557,9 +724,36 @@ Then generate the SQL query:`;
         throw new Error('school_id is required in context for SQL generation');
       }
 
-      const prompt = await this.buildPrompt(query, context, conversationHistory);
+      // If this is a retry after an error, include error feedback in the prompt
+      let prompt: string;
+      if (previousError && previousSQL && attemptNumber > 1) {
+        console.log(`[LLM SQL Generator] Retry attempt ${attemptNumber} with error feedback`);
+        // Build a retry prompt with error feedback
+        prompt = await this.buildRetryPrompt(query, context, conversationHistory, previousError, previousSQL, attemptNumber);
+      } else {
+        prompt = await this.buildPrompt(query, context, conversationHistory);
+      }
+      
       const rawSQL = await this.callLLM(prompt);
-      let sql = this.sanitizeSQL(rawSQL);
+      
+      // Log the raw SQL response for debugging
+      console.log('[LLM SQL Generator] Raw SQL response (first 500 chars):', rawSQL?.substring(0, 500));
+      
+      // If LLM returns empty or indicates it's not a data query, return null
+      if (!rawSQL || rawSQL.trim() === '' || rawSQL.toLowerCase().includes('this is not a data query')) {
+        console.log('[LLM SQL Generator] LLM indicated this is not a data query');
+        return null;
+      }
+      
+      let sql: string;
+      try {
+        sql = this.sanitizeSQL(rawSQL);
+        console.log('[LLM SQL Generator] Sanitized SQL (first 200 chars):', sql.substring(0, 200));
+      } catch (error: any) {
+        console.error('[LLM SQL Generator] SQL sanitization failed:', error.message);
+        console.error('[LLM SQL Generator] Raw SQL that failed (first 500 chars):', rawSQL?.substring(0, 500));
+        throw error;
+      }
 
       // Post-process: Replace <school_id_from_context> placeholder with actual school_id
       sql = sql.replace(/<school_id_from_context>/g, schoolId);
@@ -575,40 +769,78 @@ Then generate the SQL query:`;
   }
 
   /**
-   * Generate SQL and execute it
+   * Generate SQL and execute it with retry on error (up to 3 attempts)
    */
-  async generateAndExecute(query: string, context?: any): Promise<ExecutionResult> {
-    try {
-      const result = await this.generateSQL(query, context);
-      
-      if (!result) {
+  async generateAndExecute(query: string, context?: any, conversationHistory?: Array<{ role: string; content: string }>): Promise<ExecutionResult> {
+    const maxRetries = 3;
+    let lastError: string | undefined;
+    let lastSQL: string | undefined;
+    let attemptNumber = 1;
+
+    while (attemptNumber <= maxRetries) {
+      try {
+        console.log(`[LLM SQL Generator] Attempt ${attemptNumber} of ${maxRetries}`);
+        
+        const result = await this.generateSQL(
+          query, 
+          context, 
+          conversationHistory,
+          lastError,
+          lastSQL,
+          attemptNumber
+        );
+        
+        if (!result) {
+          return {
+            success: false,
+            error: 'Could not generate SQL for this query'
+          };
+        }
+
+        lastSQL = result.sql;
+
+        // Execute the SQL
+        console.log(`[LLM SQL Generator] Executing SQL (attempt ${attemptNumber}):`, result.sql.substring(0, 200));
+        const data = await sequelize.query(result.sql, {
+          type: QueryTypes.SELECT
+        });
+
+        // Success! Format response and return
+        const formattedResponse = this.formatResponse(query, data);
+        console.log(`[LLM SQL Generator] SQL executed successfully on attempt ${attemptNumber}`);
+
         return {
-          success: false,
-          error: 'Could not generate SQL for this query'
+          success: true,
+          data,
+          sql: result.sql,
+          formattedResponse
         };
+      } catch (error: any) {
+        lastError = error.message || 'Error executing query';
+        console.error(`[LLM SQL Generator] SQL execution error on attempt ${attemptNumber}:`, lastError);
+        console.error(`[LLM SQL Generator] Failed SQL:`, lastSQL?.substring(0, 500));
+
+        // If this was the last attempt, return error
+        if (attemptNumber >= maxRetries) {
+          console.error(`[LLM SQL Generator] All ${maxRetries} attempts failed. Giving up.`);
+          return {
+            success: false,
+            error: lastError,
+            sql: lastSQL
+          };
+        }
+
+        // Increment attempt and retry
+        attemptNumber++;
+        console.log(`[LLM SQL Generator] Retrying with error feedback...`);
       }
-
-      // Execute the SQL
-      const data = await sequelize.query(result.sql, {
-        type: QueryTypes.SELECT
-      });
-
-      // Format response
-      const formattedResponse = this.formatResponse(query, data);
-
-      return {
-        success: true,
-        data,
-        sql: result.sql,
-        formattedResponse
-      };
-    } catch (error: any) {
-      console.error('SQL execution error:', error);
-      return {
-        success: false,
-        error: error.message || 'Error executing query'
-      };
     }
+
+    // Should never reach here, but just in case
+    return {
+      success: false,
+      error: lastError || 'Failed to generate and execute SQL after multiple attempts'
+    };
   }
 
   /**
@@ -769,56 +1001,55 @@ Then generate the SQL query:`;
 
   /**
    * Format query results into natural language response
+   * Uses actual data to generate accurate responses
    */
-  formatResponse(query: string, data: any[]): string {
-    if (data.length === 0) {
+  formatResponse(query: string, data: any[], count?: number): string {
+    if (!data || data.length === 0) {
       return 'No results found.';
     }
 
-    // Perform data analysis for calculations
-    const analysis = this.analyzeData(query, data);
-    
-    const count = data.length;
     const queryLower = query.toLowerCase();
-
-    // If we have analysis (ratios, percentages, etc.), include it
-    if (analysis.analysis) {
-      return `${analysis.analysis}\n\nHere are the detailed results (${count} ${count === 1 ? 'record' : 'records'}):`;
-    }
-
-    // Focus on the actual data, count is just informational
-    if (queryLower.includes('student')) {
-      if (queryLower.includes('unpaid') || queryLower.includes('pending') || queryLower.includes('fee')) {
-        const totalAmount = data.reduce((sum, item) => sum + (parseFloat(item.amount || item.fee_amount || 0) || 0), 0);
-        if (totalAmount > 0) {
-          return `Here are the students with unpaid fees (${count} ${count === 1 ? 'student' : 'students'}, total: ₹${totalAmount.toLocaleString('en-IN')}):`;
-        }
-        return `Here are the students with unpaid fees (${count} ${count === 1 ? 'student' : 'students'}):`;
-      }
+    
+    // Check if this is a COUNT query result (has count field)
+    const isCountResult = data.length > 0 && data[0].count !== undefined;
+    
+    if (isCountResult) {
+      // COUNT query - extract the actual count value
+      const totalCount = Number(data[0].count);
+      
       if (queryLower.includes('absent')) {
-        return `Here are the absent students (${count} ${count === 1 ? 'student' : 'students'}):`;
+        return `${totalCount} ${totalCount === 1 ? 'student is' : 'students are'} absent today.`;
       }
-      return `Here are the students (${count} ${count === 1 ? 'student' : 'students'}):`;
+      if (queryLower.includes('present')) {
+        return `${totalCount} ${totalCount === 1 ? 'student is' : 'students are'} present today.`;
+      }
+      if (queryLower.includes('student')) {
+        return `${totalCount} ${totalCount === 1 ? 'student' : 'students'} found.`;
+      }
+      return `${totalCount} ${totalCount === 1 ? 'record' : 'records'} found.`;
     }
 
-    if (queryLower.includes('fee')) {
+    // LIST query - use actual data length
+    const actualCount = count !== undefined ? count : data.length;
+    
+    if (queryLower.includes('absent') && queryLower.includes('student')) {
+      return `${actualCount} ${actualCount === 1 ? 'student is' : 'students are'} absent today.`;
+    }
+    
+    if (queryLower.includes('present') && queryLower.includes('student')) {
+      return `${actualCount} ${actualCount === 1 ? 'student is' : 'students are'} present today.`;
+    }
+
+    if (queryLower.includes('unpaid') || queryLower.includes('pending') || (queryLower.includes('fee') && queryLower.includes('pending'))) {
       const totalAmount = data.reduce((sum, item) => sum + (parseFloat(item.amount || item.fee_amount || 0) || 0), 0);
       if (totalAmount > 0) {
-        return `Here are the fee records (${count} ${count === 1 ? 'record' : 'records'}, total: ₹${totalAmount.toLocaleString('en-IN')}):`;
+        return `${actualCount} ${actualCount === 1 ? 'student has' : 'students have'} pending fees (total: ₹${totalAmount.toLocaleString('en-IN')}).`;
       }
-      return `Here are the fee records (${count} ${count === 1 ? 'record' : 'records'}):`;
+      return `${actualCount} ${actualCount === 1 ? 'student has' : 'students have'} pending fees.`;
     }
 
-    if (queryLower.includes('exam') || queryLower.includes('result')) {
-      return `Here are the exam results (${count} ${count === 1 ? 'result' : 'results'}):`;
-    }
-
-    if (queryLower.includes('attendance')) {
-      return `Here are the attendance records (${count} ${count === 1 ? 'record' : 'records'}):`;
-    }
-
-    // Generic response - focus on showing the data
-    return `Here are the results (${count} ${count === 1 ? 'item' : 'items'}):`;
+    // Generic response
+    return `${actualCount} ${actualCount === 1 ? 'result' : 'results'} found.`;
   }
 
   /**

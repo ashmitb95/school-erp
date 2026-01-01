@@ -4,6 +4,8 @@ import { QueryTypes } from 'sequelize';
 import { sequelize } from '../../../shared/database/config';
 import { LLMSQLGenerator } from './llm-sql-generator';
 import { getSchemaContext } from './database-schema';
+import { QueryPipeline } from './query-pipeline';
+import { AuthRequest } from '../middleware/auth';
 
 // SSE helper function
 function setupSSE(res: Response) {
@@ -37,6 +39,47 @@ const router = Router();
 // Initialize LLM SQL Generator
 const sqlGenerator = new LLMSQLGenerator();
 
+// Initialize Query Pipeline
+const queryPipeline = new QueryPipeline(sendSSE);
+
+/**
+ * Detect if a user message is a clarification response and merge it with the original query
+ */
+function detectAndMergeClarification(
+  message: string,
+  conversationHistory: Array<{ role: string; content: string }>
+): { query: string; isClarification: boolean } {
+  const history = conversationHistory.filter((h: any) => h.role && h.content);
+  
+  // Need at least 2 messages in history (user query + assistant clarification)
+  if (history.length < 2) {
+    return { query: message, isClarification: false };
+  }
+  
+  const lastAssistantMsg = history[history.length - 1];
+  const secondLastUserMsg = history[history.length - 2];
+  
+  // Check if last assistant message likely asked for clarification
+  const clarificationPatterns = [
+    /\?/,
+    /(?:which|what|do you|are you|would you|can you|please|clarify|specify)/i,
+    /(?:subject|overall|performance|class|date|time|period)/i
+  ];
+  
+  const looksLikeClarification = lastAssistantMsg.role === 'assistant' && 
+    clarificationPatterns.some(pattern => pattern.test(lastAssistantMsg.content));
+  
+  // If it looks like a clarification and current message is short/concise (likely a response)
+  if (looksLikeClarification && message.length < 100) {
+    // Merge: original query + clarification response
+    const mergedQuery = `${secondLastUserMsg.content}. ${message}`;
+    console.log(`[AI Service] Detected clarification response. Original: "${secondLastUserMsg.content}", Response: "${message}", Merged: "${mergedQuery}"`);
+    return { query: mergedQuery, isClarification: true };
+  }
+  
+  return { query: message, isClarification: false };
+}
+
 // Chat endpoint - handles both conversational queries and SQL generation
 const chatSchema = z.object({
   message: z.string().min(1),
@@ -60,109 +103,208 @@ router.post('/chat/stream', async (req: Request, res: Response) => {
 
     setupSSE(res);
 
-    // Check if the query seems like it needs data retrieval
-    const needsData = /(?:show|list|find|get|which|who|how many|count|what|when|where)/i.test(message);
-    
-    if (needsData) {
-      // Step 1: Send thinking indicator
-      sendSSE(res, 'thinking', { message: 'Analyzing your query and understanding what data you need...' });
+    // Check if this is a clarification response to a previous query
+    const history = (conversationHistory || []).filter((h: any) => h.role && h.content) as Array<{ role: string; content: string }>;
+    const { query: processedQuery, isClarification: isClarificationResponse } = detectAndMergeClarification(message, history);
 
-      // Step 2: Generate SQL with streaming thought process (include conversation history)
-      sendSSE(res, 'thinking', { message: 'Generating SQL query based on your question...' });
+    // Use LLM to determine if this is a data query or conversational query
+    // This ensures we only generate SQL when data is actually needed
+    sendSSE(res, 'thinking', { message: isClarificationResponse ? 'Processing your clarification...' : 'Analyzing query type...' });
+    
+    const schema = getSchemaContext();
+    
+    const queryTypePrompt = `Analyze this user query and determine if it requires data retrieval from the database or is just a conversational question.
+
+DATABASE SCHEMA:
+${schema}
+
+USER QUERY: "${processedQuery}"
+
+Respond with ONLY a JSON object:
+{
+  "needsData": true/false,
+  "reason": "brief explanation"
+}
+
+Rules:
+- needsData = true if the query asks for specific data (students, fees, attendance, exam results, counts, lists, etc.)
+- needsData = false if it's a general question, explanation request, or doesn't require database query
+- Examples of needsData=true: "how many students", "which students are absent", "show me fees", "list students", "give me data"
+- Examples of needsData=false: "what is attendance", "how does the system work", "explain fees", general questions
+
+Return ONLY the JSON, no other text.`;
+
+    let needsData = false;
+    try {
+      const typeResponse = await sqlGenerator.callLLM(queryTypePrompt);
+      const jsonMatch = typeResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const typeData = JSON.parse(jsonMatch[0]);
+        needsData = typeData.needsData === true;
+      } else {
+        // Fallback: use pattern matching if LLM fails
+        needsData = /(?:show|list|find|get|which|who|how many|count|what|when|where|give me|give|data|students|fees|attendance|exams|results|absent|present|pending|unpaid)/i.test(message);
+      }
+    } catch (error) {
+      // Fallback: use pattern matching if LLM fails
+      console.error('[AI Service] Query type detection failed, using fallback:', error);
+      needsData = /(?:show|list|find|get|which|who|how many|count|what|when|where|give me|give|data|students|fees|attendance|exams|results|absent|present|pending|unpaid)/i.test(message);
+    }
+    
+    // If it's a data query, generate SQL, execute it, and return data
+    if (needsData) {
+      // Extract school_id from authenticated user (preferred) or context (fallback)
+      const authReq = req as AuthRequest;
+      const schoolId = authReq.user?.school_id || context?.school_id;
       
-      let generatedSQL = '';
-      const history = (conversationHistory || []).filter((h: any) => h.role && h.content) as Array<{ role: string; content: string }>;
-      const sqlResult = await sqlGenerator.generateSQL(message, context, history);
-      
-      if (!sqlResult) {
+      if (!schoolId) {
         sendSSE(res, 'error', { 
-          message: 'I couldn\'t understand your query. Please try rephrasing it.' 
+          message: 'school_id is required. Please ensure you are authenticated or provide school_id in context.' 
         });
         sendSSE(res, 'done', { type: 'error' });
         res.end();
         return;
       }
 
-      generatedSQL = sqlResult.sql;
-      
-      // Step 3: Send the generated SQL
-      sendSSE(res, 'sql', { sql: generatedSQL });
-      sendSSE(res, 'thinking', { message: 'Executing query and fetching data...' });
+      // Ensure school_id is in context for downstream processing
+      if (!context.school_id) {
+        context.school_id = schoolId;
+      }
 
-      // Step 4: Execute SQL and get data
+      // Process query through pipeline - this will generate SQL and we MUST execute it
+      // Use processedQuery (which may be merged with clarification) instead of raw message
       try {
+        const pipelineResult = await queryPipeline.processQuery(
+          {
+            query: processedQuery,
+            context,
+            conversationHistory: history,
+            schoolId,
+          },
+          res
+        );
+
+        // If clarification is needed, pipeline returns null
+        if (!pipelineResult) {
+          // User needs to respond to clarification
+          sendSSE(res, 'done', { type: 'clarification_needed' });
+          res.end();
+          return;
+        }
+
+        const { sql: generatedSQL } = pipelineResult;
+
+        // Execute SQL and get data with retry mechanism
+        sendSSE(res, 'thinking', { message: 'Executing query and fetching data...' });
         console.log(`[AI Service] Executing SQL query...`);
-        const data = await sequelize.query(generatedSQL, {
-          type: QueryTypes.SELECT
-        });
+        
+        let data: any[];
+        let finalSQL = generatedSQL;
+        let executionError: string | undefined;
+        const maxRetries = 3;
+        let attemptNumber = 1;
+
+        while (attemptNumber <= maxRetries) {
+          try {
+            data = await sequelize.query(finalSQL, {
+              type: QueryTypes.SELECT
+            });
+            // Success - break out of retry loop
+            break;
+          } catch (error: any) {
+            executionError = error.message || 'Database error';
+            console.error(`[AI Service] SQL execution error on attempt ${attemptNumber}:`, executionError);
+            console.error(`[AI Service] Failed SQL:`, finalSQL.substring(0, 500));
+
+            // If this was the last attempt, throw the error
+            if (attemptNumber >= maxRetries) {
+              console.error(`[AI Service] All ${maxRetries} attempts failed. Giving up.`);
+              throw error;
+            }
+
+            // Retry with error feedback
+            attemptNumber++;
+            sendSSE(res, 'thinking', { 
+              message: `Query failed, retrying with error feedback (attempt ${attemptNumber}/${maxRetries})...` 
+            });
+            console.log(`[AI Service] Retrying SQL generation with error feedback...`);
+            
+            // Regenerate SQL with error feedback
+            const history = (conversationHistory || []).filter((h: any) => h.role && h.content) as Array<{ role: string; content: string }>;
+            const retryResult = await sqlGenerator.generateSQL(
+              processedQuery,
+              { ...context, school_id: schoolId },
+              history,
+              executionError,
+              finalSQL,
+              attemptNumber
+            );
+
+            if (!retryResult) {
+              throw new Error('Failed to regenerate SQL after error');
+            }
+
+            finalSQL = retryResult.sql;
+            console.log(`[AI Service] Regenerated SQL (attempt ${attemptNumber}):`, finalSQL.substring(0, 200));
+          }
+        }
 
         const count = data.length;
-        console.log(`[AI Service] Query executed successfully: ${count} rows returned`);
+        console.log(`[AI Service] Query executed successfully on attempt ${attemptNumber}: ${count} rows returned`);
 
-        // Step 5: For large datasets, send SQL and count via SSE, then frontend will fetch data via API
+        // For large datasets, send SQL and count via SSE, then frontend will fetch data via API
         // For smaller datasets (< 100 rows), send data directly via SSE
         if (count > 100) {
           console.log(`[AI Service] Large dataset (${count} rows) - sending SQL reference instead of data`);
-          // Send SQL and count - frontend will fetch data via separate API call
           sendSSE(res, 'data', { 
-            sql: generatedSQL, 
+            sql: finalSQL, 
             count: count,
             fetchViaApi: true 
           });
           console.log(`[AI Service] Data event sent with fetchViaApi=true`);
         } else {
           console.log(`[AI Service] Small dataset (${count} rows) - sending data via SSE`);
-          // Send data directly for small datasets
           sendSSE(res, 'data', { data: data, count: count });
           console.log(`[AI Service] Data event sent with direct data`);
         }
         
-        // Step 6: Analyze data for calculations (ratios, percentages, etc.)
+        // Analyze data for calculations (ratios, percentages, etc.)
         sendSSE(res, 'thinking', { message: 'Analyzing results and calculating insights...' });
-        const analysis = sqlGenerator.analyzeData(message, data);
+        const analysis = sqlGenerator.analyzeData(processedQuery, data);
         
-        // Step 7: Format response using LLM (include conversation history)
+        // Format response using actual data
         sendSSE(res, 'thinking', { message: 'Formatting results...' });
-        const formattedResponse = sqlGenerator.formatResponse(message, data);
+        const formattedResponse = sqlGenerator.formatResponse(processedQuery, data, count);
         
-        // Stream the formatted response
-        const formattingPrompt = `Format this query result in a friendly, conversational way: ${formattedResponse || `Found ${count} results`}. ${analysis.analysis ? `Important: The user asked for a calculation. Include this analysis: ${analysis.analysis}` : ''} Keep it concise and helpful.`;
+        // Stream the formatted response - use actual data, not LLM for formatting
+        let responseText = formattedResponse;
+        if (analysis.analysis) {
+          responseText = `${analysis.analysis}\n\n${responseText}`;
+        }
         
-        try {
-          await sqlGenerator.callLLMStream(formattingPrompt, (chunk: string) => {
-            sendSSE(res, 'token', { token: chunk });
-          });
-        } catch (e) {
-          // Fallback to simple text if LLM fails
-          let responseText = formattedResponse || `Found ${count} results`;
-          if (analysis.analysis) {
-            responseText = `${analysis.analysis}\n\n${responseText}`;
-          }
-          const words = responseText.split(' ');
-          for (let i = 0; i < words.length; i++) {
-            await new Promise(resolve => setTimeout(resolve, 30));
-            sendSSE(res, 'token', { token: words[i] + (i < words.length - 1 ? ' ' : '') });
-          }
+        // Stream response word by word for smooth UX
+        const words = responseText.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          await new Promise(resolve => setTimeout(resolve, 30));
+          sendSSE(res, 'token', { token: words[i] + (i < words.length - 1 ? ' ' : '') });
         }
 
-        // Step 7: Send done event
+        // Send done event
         sendSSE(res, 'done', { type: 'data_query' });
       } catch (error: any) {
-        console.error('SQL execution error:', error);
+        console.error('[AI Service] Pipeline error:', error);
         sendSSE(res, 'error', { 
-          message: `Error executing query: ${error.message || 'Database error'}` 
+          message: `Error processing query: ${error.message || 'Database error'}` 
         });
         sendSSE(res, 'done', { type: 'error' });
       }
     } else {
-      // Regular conversational response with streaming (include conversation history)
+      // Conversational query - NO SQL generation, just respond conversationally
       sendSSE(res, 'thinking', { message: 'Thinking...' });
-
-      // Build a conversational prompt with conversation history
+      
       const schema = getSchemaContext();
       const examples = await sqlGenerator.getExampleValues();
       
-      // Format conversation history for the prompt
       let historyContext = '';
       if (conversationHistory && conversationHistory.length > 0) {
         historyContext = '\n\nCONVERSATION HISTORY:\n';
@@ -171,7 +313,7 @@ router.post('/chat/stream', async (req: Request, res: Response) => {
         });
       }
       
-      const conversationalPrompt = `You are a helpful AI assistant for a Praxis ERP system. Answer questions about students, fees, attendance, exams, and other school-related topics in a friendly, conversational manner.
+      const conversationalPrompt = `You are a helpful AI assistant for a Praxis ERP system. Answer questions briefly and directly. Keep responses concise and professional. Do NOT generate SQL queries - this is a conversational question.
 
 DATABASE SCHEMA:
 ${schema}
@@ -182,13 +324,10 @@ ${historyContext}
 
 Current user question: "${message}"
 
-Provide a helpful, conversational response that takes into account the conversation history:`;
+Provide a brief, direct conversational response:`;
       
-      // Stream the LLM response
-      let fullResponse = '';
       try {
         await sqlGenerator.callLLMStream(conversationalPrompt, (chunk: string) => {
-          fullResponse += chunk;
           sendSSE(res, 'token', { token: chunk });
         });
         sendSSE(res, 'done', { type: 'conversation' });
@@ -214,15 +353,72 @@ Provide a helpful, conversational response that takes into account the conversat
 // Non-streaming chat endpoint (fallback)
 router.post('/chat', async (req: Request, res: Response) => {
   try {
-    const { message, context, conversationHistory = [] } = chatSchema.parse(req.body);
+    const { message, context: requestContext, conversationHistory = [] } = chatSchema.parse(req.body);
+    const context = requestContext || {};
 
-    // Check if the query seems like it needs data retrieval
-    const needsData = /(?:show|list|find|get|which|who|how many|count|what|when|where)/i.test(message);
+    // Check if this is a clarification response to a previous query
+    const history = (conversationHistory || []).filter((h: any) => h.role && h.content) as Array<{ role: string; content: string }>;
+    const { query: processedQuery } = detectAndMergeClarification(message, history);
+
+    // Use LLM to determine if this is a data query or conversational query
+    const schema = getSchemaContext();
+    const queryTypePrompt = `Analyze this user query and determine if it requires data retrieval from the database or is just a conversational question.
+
+DATABASE SCHEMA:
+${schema}
+
+USER QUERY: "${processedQuery}"
+
+Respond with ONLY a JSON object:
+{
+  "needsData": true/false,
+  "reason": "brief explanation"
+}
+
+Rules:
+- needsData = true if the query asks for specific data (students, fees, attendance, exam results, counts, lists, etc.)
+- needsData = false if it's a general question, explanation request, or doesn't require database query
+- Examples of needsData=true: "how many students", "which students are absent", "show me fees", "list students", "give me data"
+- Examples of needsData=false: "what is attendance", "how does the system work", "explain fees", general questions
+
+Return ONLY the JSON, no other text.`;
+
+    let needsData = false;
+    try {
+      const typeResponse = await sqlGenerator.callLLM(queryTypePrompt);
+      const jsonMatch = typeResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const typeData = JSON.parse(jsonMatch[0]);
+        needsData = typeData.needsData === true;
+      } else {
+        // Fallback: use pattern matching if LLM fails
+        needsData = /(?:show|list|find|get|which|who|how many|count|what|when|where|give me|give|data|students|fees|attendance|exams|results|absent|present|pending|unpaid)/i.test(message);
+      }
+    } catch (error) {
+      // Fallback: use pattern matching if LLM fails
+      needsData = /(?:show|list|find|get|which|who|how many|count|what|when|where|give me|give|data|students|fees|attendance|exams|results|absent|present|pending|unpaid)/i.test(message);
+    }
     
+    // If it's a data query, generate SQL, execute it, and return data
     if (needsData) {
-      // Generate SQL from natural language (with conversation history)
-      const history = (conversationHistory || []).filter((h: any) => h.role && h.content) as Array<{ role: string; content: string }>;
-      const sqlResult = await sqlGenerator.generateSQL(message, context, history);
+      // Extract school_id
+      const authReq = req as AuthRequest;
+      const schoolId = authReq.user?.school_id || context?.school_id;
+      
+      if (!schoolId) {
+        return res.json({
+          response: 'school_id is required. Please ensure you are authenticated or provide school_id in context.',
+          type: 'error'
+        });
+      }
+
+      if (!context.school_id) {
+        context.school_id = schoolId;
+      }
+
+      // Generate SQL and execute it - data MUST be returned
+      // Use processedQuery (which may be merged with clarification) instead of raw message
+      const sqlResult = await sqlGenerator.generateSQL(processedQuery, { ...context, school_id: schoolId }, history);
       
       if (!sqlResult) {
         return res.json({
@@ -232,15 +428,59 @@ router.post('/chat', async (req: Request, res: Response) => {
       }
 
       try {
-        const data = await sequelize.query(sqlResult.sql, {
-          type: QueryTypes.SELECT
-        });
+        // ALWAYS execute SQL and return data with retry mechanism
+        let data: any[];
+        let finalSQL = sqlResult.sql;
+        let executionError: string | undefined;
+        const maxRetries = 3;
+        let attemptNumber = 1;
+
+        while (attemptNumber <= maxRetries) {
+          try {
+            data = await sequelize.query(finalSQL, {
+              type: QueryTypes.SELECT
+            });
+            // Success - break out of retry loop
+            break;
+          } catch (error: any) {
+            executionError = error.message || 'Database error';
+            console.error(`[AI Service] SQL execution error on attempt ${attemptNumber}:`, executionError);
+
+            // If this was the last attempt, throw the error
+            if (attemptNumber >= maxRetries) {
+              console.error(`[AI Service] All ${maxRetries} attempts failed. Giving up.`);
+              throw error;
+            }
+
+            // Retry with error feedback
+            attemptNumber++;
+            console.log(`[AI Service] Retrying SQL generation with error feedback...`);
+            
+            // Regenerate SQL with error feedback
+            const retryResult = await sqlGenerator.generateSQL(
+              processedQuery,
+              { ...context, school_id: schoolId },
+              history,
+              executionError,
+              finalSQL,
+              attemptNumber
+            );
+
+            if (!retryResult) {
+              throw new Error('Failed to regenerate SQL after error');
+            }
+
+            finalSQL = retryResult.sql;
+            console.log(`[AI Service] Regenerated SQL (attempt ${attemptNumber}):`, finalSQL.substring(0, 200));
+          }
+        }
 
         const count = data.length;
+        console.log(`[AI Service] Query executed successfully on attempt ${attemptNumber}: ${count} rows returned`);
         
         // Analyze data for calculations
-        const analysis = sqlGenerator.analyzeData(message, data);
-        const formattedResponse = sqlGenerator.formatResponse(message, data);
+        const analysis = sqlGenerator.analyzeData(processedQuery, data);
+        const formattedResponse = sqlGenerator.formatResponse(processedQuery, data, count);
         
         // Include analysis in response if available
         let responseText = formattedResponse || `Found ${count} results`;
@@ -252,19 +492,18 @@ router.post('/chat', async (req: Request, res: Response) => {
           response: responseText,
           data: data,
           count: count,
-          sql: sqlResult.sql,
+          sql: finalSQL,
           type: 'data_query',
           insights: analysis.insights
         });
       } catch (error: any) {
         return res.json({
-          response: `Error executing query: ${error.message || 'Database error'}`,
+          response: `Error executing query after ${maxRetries} attempts: ${error.message || 'Database error'}`,
           type: 'error'
         });
       }
     } else {
-      // Regular conversational response (with conversation history)
-      const schema = getSchemaContext();
+      // Conversational query - NO SQL generation, just respond conversationally
       const examples = await sqlGenerator.getExampleValues();
       
       // Format conversation history for the prompt
@@ -276,7 +515,7 @@ router.post('/chat', async (req: Request, res: Response) => {
         });
       }
       
-      const conversationalPrompt = `You are a helpful AI assistant for a Praxis ERP system. Answer questions about students, fees, attendance, exams, and other school-related topics in a friendly, conversational manner.
+      const conversationalPrompt = `You are a helpful AI assistant for a Praxis ERP system. Answer questions briefly and directly. Keep responses concise and professional. Do NOT generate SQL queries - this is a conversational question.
 
 DATABASE SCHEMA:
 ${schema}
@@ -287,7 +526,7 @@ ${historyContext}
 
 Current user question: "${message}"
 
-Provide a helpful, conversational response that takes into account the conversation history:`;
+Provide a brief, direct conversational response:`;
 
       const response = await sqlGenerator.callLLM(conversationalPrompt);
       return res.json({

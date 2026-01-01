@@ -1,0 +1,124 @@
+{
+  "domain": "attendance",
+  "description": "Attendance-related queries",
+  "table": "attendances",
+  "primaryEntity": "students",
+  "questionPatterns": [
+    {
+      "pattern": "how many students (absent|missing|not present) (today|this day)",
+      "type": "simple",
+      "intent": "count_absent_today",
+      "sqlTemplate": "SELECT COUNT(DISTINCT s.id) as count FROM students s JOIN attendances a ON s.id = a.student_id WHERE s.school_id = '<school_id>' AND a.school_id = '<school_id>' AND a.date = CURRENT_DATE AND a.status = 'absent'",
+      "variations": [
+        "how many students absent today",
+        "count students absent today",
+        "number of absent students today",
+        "students missing today",
+        "how many absent today"
+      ],
+      "keywords": ["students", "absent", "today"]
+    },
+    {
+      "pattern": "students (absent|missing|not present) (today|this day)",
+      "type": "simple",
+      "intent": "list_absent_today",
+      "sqlTemplate": "SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, a.status, a.date FROM students s JOIN classes c ON s.class_id = c.id JOIN attendances a ON s.id = a.student_id WHERE s.school_id = '<school_id>' AND a.school_id = '<school_id>' AND a.date = CURRENT_DATE AND a.status = 'absent' ORDER BY c.name, s.roll_number",
+      "variations": [
+        "students absent today",
+        "which students absent today",
+        "which students are absent today",
+        "list students absent today",
+        "show students absent today",
+        "who is absent today"
+      ],
+      "keywords": ["students", "absent", "today"]
+    },
+    {
+      "pattern": "students (present|attended) (today|this day)",
+      "type": "simple",
+      "intent": "list_present_today",
+      "sqlTemplate": "SELECT DISTINCT s.*, s.first_name, s.last_name, s.admission_number, s.roll_number, c.name as class_name, a.status, a.date FROM students s JOIN classes c ON s.class_id = c.id JOIN attendances a ON s.id = a.student_id WHERE s.school_id = '<school_id>' AND a.school_id = '<school_id>' AND a.date = CURRENT_DATE AND a.status = 'present' ORDER BY c.name, s.roll_number",
+      "variations": [
+        "students present today",
+        "list students present today",
+        "who attended today"
+      ],
+      "keywords": ["students", "present", "today"]
+    },
+    {
+      "pattern": "attendance (rate|percentage) (today|this week|this month)",
+      "type": "complex",
+      "intent": "attendance_rate",
+      "description": "Calculate attendance rate for a period",
+      "keywords": ["attendance", "rate", "percentage"]
+    }
+  ],
+  "columnSynonyms": {
+    "absent": {
+      "sql": "status = 'absent'",
+      "description": "Student is absent"
+    },
+    "present": {
+      "sql": "status = 'present'",
+      "description": "Student is present"
+    },
+    "late": {
+      "sql": "status = 'late'",
+      "description": "Student is late"
+    },
+    "excused": {
+      "sql": "status = 'excused'",
+      "description": "Student absence is excused"
+    },
+    "missing": {
+      "sql": "status = 'absent'",
+      "description": "Synonym for absent"
+    },
+    "not present": {
+      "sql": "status = 'absent'",
+      "description": "Synonym for absent"
+    },
+    "attended": {
+      "sql": "status = 'present'",
+      "description": "Synonym for present"
+    }
+  },
+  "businessLogic": {
+    "absent_student": {
+      "condition": "a.status = 'absent' AND a.date = CURRENT_DATE",
+      "join": "JOIN attendances a ON s.id = a.student_id",
+      "description": "Student marked as absent today"
+    },
+    "present_student": {
+      "condition": "a.status = 'present' AND a.date = CURRENT_DATE",
+      "join": "JOIN attendances a ON s.id = a.student_id",
+      "description": "Student marked as present today"
+    }
+  },
+  "commonJoins": [
+    {
+      "from": "students",
+      "to": "attendances",
+      "on": "students.id = attendances.student_id",
+      "alias": "s -> a",
+      "type": "INNER"
+    },
+    {
+      "from": "attendances",
+      "to": "classes",
+      "on": "attendances.class_id = classes.id",
+      "alias": "a -> c",
+      "type": "LEFT"
+    },
+    {
+      "from": "students",
+      "to": "classes",
+      "on": "students.class_id = classes.id",
+      "alias": "s -> c",
+      "type": "LEFT"
+    }
+  ],
+  "keywords": ["attendance", "absent", "present", "late", "excused", "missing", "attended"]
+}
+
+

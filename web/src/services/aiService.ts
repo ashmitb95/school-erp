@@ -11,6 +11,9 @@ export interface AIMessage {
   pendingSql?: string; // SQL to fetch data for large datasets
   error?: string;
   errorType?: 'sql' | 'network' | 'llm' | 'general';
+  needsClarification?: boolean; // Pipeline clarification needed
+  clarificationOptions?: string[]; // Options for clarification
+  pipelineStage?: string; // Current pipeline stage
 }
 
 export interface AISuggestion {
