@@ -13,7 +13,7 @@ COPY shared/tsconfig.json ./shared/
 COPY services/package.json ./services/
 COPY services/tsconfig.json ./services/
 
-# Install all dependencies
+# Install all dependencies (workspaces)
 RUN npm install
 
 # Copy all source files
@@ -32,8 +32,8 @@ RUN echo "Building server..." && \
     cd services && \
     npm run build && \
     if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then \
-      echo "ERROR: Server build failed - no dist directory or empty" && \
-      exit 1; \
+    echo "ERROR: Server build failed - no dist directory or empty" && \
+    exit 1; \
     fi && \
     echo "✓ Server built successfully" && \
     cd ..
@@ -56,12 +56,12 @@ COPY --from=base /app/services ./services
 # Verify build
 RUN echo "Verifying production build..." && \
     if [ ! -d "shared/dist" ] || [ -z "$(ls -A shared/dist 2>/dev/null)" ]; then \
-      echo "ERROR: Shared dist missing or empty!" && \
-      exit 1; \
+    echo "ERROR: Shared dist missing or empty!" && \
+    exit 1; \
     fi && \
     if [ ! -d "services/dist" ] || [ -z "$(ls -A services/dist 2>/dev/null)" ]; then \
-      echo "ERROR: Server dist missing or empty!" && \
-      exit 1; \
+    echo "ERROR: Server dist missing or empty!" && \
+    exit 1; \
     fi && \
     echo "✓ Production build verified"
 
