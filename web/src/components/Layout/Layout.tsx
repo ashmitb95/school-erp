@@ -66,14 +66,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         >
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
-        <h1 className={styles.mobileTitle}>School ERP</h1>
+        <h1 className={styles.mobileTitle}>Praxis ERP</h1>
         <div className={styles.mobileUser}>{user?.name?.split(' ')[0] || 'User'}</div>
       </header>
 
       {/* Sidebar */}
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.sidebarHeader}>
-          <h2 className={styles.logo}>School ERP</h2>
+          <h2 className={styles.logo}>Praxis ERP</h2>
           <button
             className={styles.closeButton}
             onClick={() => setSidebarOpen(false)}

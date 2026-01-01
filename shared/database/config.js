@@ -114,3 +114,4 @@ exports.sequelize = databaseUrl
         define: config.define,
     });
 exports.default = config;
+//# sourceMappingURL=config.js.map

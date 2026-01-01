@@ -97,3 +97,4 @@ School.init({
     ],
 });
 exports.default = School;
+//# sourceMappingURL=School.js.map

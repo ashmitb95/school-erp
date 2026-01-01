@@ -3,7 +3,7 @@
 # Database Setup Script
 # This script helps you set up the database and create initial data
 
-echo "🚀 School ERP Database Setup"
+echo "🚀 Praxis ERP Database Setup"
 echo "============================"
 echo ""
 

@@ -217,3 +217,4 @@ Student.init({
     ],
 });
 exports.default = Student;
+//# sourceMappingURL=Student.js.map

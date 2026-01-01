@@ -81,3 +81,4 @@ Class.init({
     ],
 });
 exports.default = Class;
+//# sourceMappingURL=Class.js.map

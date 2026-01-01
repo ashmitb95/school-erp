@@ -2,7 +2,7 @@
 
 # Quick Setup Script - Sets up database and generates JWT
 
-echo "🚀 School ERP Quick Setup"
+echo "🚀 Praxis ERP Quick Setup"
 echo "========================="
 echo ""
 

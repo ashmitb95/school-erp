@@ -81,3 +81,4 @@ ExamResult.init({
     ],
 });
 exports.default = ExamResult;
+//# sourceMappingURL=ExamResult.js.map

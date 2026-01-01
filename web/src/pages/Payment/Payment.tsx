@@ -158,7 +158,7 @@ const Payment: React.FC = () => {
       key: orderData.key_id,
       amount: orderData.amount,
       currency: orderData.currency || 'INR',
-      name: 'School ERP',
+      name: 'Praxis ERP',
       description: `Fee Payment - ${fee.fee_type}`,
       order_id: orderData.order_id,
       handler: async (response: any) => {

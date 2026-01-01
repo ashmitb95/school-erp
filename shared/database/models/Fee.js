@@ -93,3 +93,4 @@ Fee.init({
     ],
 });
 exports.default = Fee;
+//# sourceMappingURL=Fee.js.map

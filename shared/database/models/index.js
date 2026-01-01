@@ -48,3 +48,4 @@ Object.values(models).forEach((model) => {
     }
 });
 exports.default = models;
+//# sourceMappingURL=index.js.map

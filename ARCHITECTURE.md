@@ -1,4 +1,4 @@
-# School ERP System Architecture
+# Praxis ERP System Architecture
 
 ## Overview
 

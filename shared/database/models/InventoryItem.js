@@ -77,3 +77,4 @@ InventoryItem.init({
     ],
 });
 exports.default = InventoryItem;
+//# sourceMappingURL=InventoryItem.js.map

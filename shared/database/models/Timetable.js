@@ -97,3 +97,4 @@ Timetable.init({
     ],
 });
 exports.default = Timetable;
+//# sourceMappingURL=Timetable.js.map

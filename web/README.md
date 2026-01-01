@@ -1,6 +1,6 @@
-# School ERP Web App
+# Praxis ERP Web App
 
-Modern, mobile-first web application for the School ERP system with AI-first features.
+Modern, mobile-first web application for the Praxis ERP system with AI-first features.
 
 ## Features
 

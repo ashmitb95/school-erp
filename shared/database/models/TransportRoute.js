@@ -87,3 +87,4 @@ TransportRoute.init({
     ],
 });
 exports.default = TransportRoute;
+//# sourceMappingURL=TransportRoute.js.map

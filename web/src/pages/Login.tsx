@@ -59,7 +59,7 @@ const Login: React.FC = () => {
           <div className={styles.logo}>
             <Sparkles size={32} />
           </div>
-          <h1 className={styles.title}>School ERP</h1>
+          <h1 className={styles.title}>Praxis ERP</h1>
           <p className={styles.subtitle}>AI-Powered Education Management</p>
         </div>
 

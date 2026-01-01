@@ -54,3 +54,4 @@ Subject.init({
     ],
 });
 exports.default = Subject;
+//# sourceMappingURL=Subject.js.map

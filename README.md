@@ -1,4 +1,4 @@
-# School ERP System - All-in-One Solution
+# Praxis ERP System - All-in-One Solution
 
 A comprehensive, scalable ERP system for managing a chain of schools in India, with ERPNext integration capabilities.
 
