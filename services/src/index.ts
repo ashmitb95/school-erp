@@ -19,7 +19,7 @@ import { verifyToken } from './middleware/auth';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const app = express();
-const PORT = process.env.PORT || process.env.API_GATEWAY_PORT || 3000;
+const PORT = Number(process.env.PORT || process.env.API_GATEWAY_PORT || 3000);
 
 // Middleware
 // CORS configuration - allow all origins (you can restrict this later if needed)
