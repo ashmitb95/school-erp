@@ -28,7 +28,8 @@ function resolveToIPv4Sync(hostname: string): string {
   }
 }
 
-// Support both DATABASE_URL (Supabase) and individual env vars
+// Support DATABASE_URL (private connection for application runtime) and individual env vars
+// Note: PUBLIC_DATABASE_URL is only used by migration scripts, not the application
 const databaseUrl = process.env.DATABASE_URL;
 
 let config: {

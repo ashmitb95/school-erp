@@ -1,5 +1,40 @@
-import { sequelize } from './config';
+import { Sequelize } from 'sequelize';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 import models from './models';
+
+// Load .env from project root
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+// For migrations, prefer PUBLIC_DATABASE_URL (Railway public connection) if available
+// Otherwise fall back to DATABASE_URL
+const databaseUrl = process.env.PUBLIC_DATABASE_URL || process.env.DATABASE_URL;
+
+// Create a temporary sequelize instance for migrations if using public URL
+let sequelize = require('./config').sequelize;
+
+// If PUBLIC_DATABASE_URL is set, create a new connection for migrations
+if (process.env.PUBLIC_DATABASE_URL && process.env.PUBLIC_DATABASE_URL !== process.env.DATABASE_URL) {
+  const url = new URL(process.env.PUBLIC_DATABASE_URL);
+  sequelize = new Sequelize(
+    url.pathname.slice(1).split('?')[0],
+    url.username,
+    url.password,
+    {
+      host: url.hostname,
+      port: parseInt(url.port || '5432'),
+      dialect: 'postgres',
+      logging: false,
+      dialectOptions: {
+        ssl: process.env.PUBLIC_DATABASE_URL?.includes('sslmode=require') ? {
+          require: true,
+          rejectUnauthorized: false,
+        } : false,
+      },
+    }
+  );
+  console.log('📡 Using PUBLIC_DATABASE_URL for migrations');
+}
 
 /**
  * Database Migration Script

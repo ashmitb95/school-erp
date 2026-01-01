@@ -1,10 +1,42 @@
 import * as dotenv from 'dotenv';
 import * as path from 'path';
-import { sequelize } from '../shared/database/config';
+import { Sequelize } from 'sequelize';
 import models from '../shared/database/models';
 
 // Load .env from project root
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+// For migrations/seeds, prefer PUBLIC_DATABASE_URL (Railway public connection) if available
+const databaseUrl = process.env.PUBLIC_DATABASE_URL || process.env.DATABASE_URL;
+
+// Create sequelize instance for migrations
+let sequelize: Sequelize;
+if (databaseUrl) {
+  const url = new URL(databaseUrl);
+  sequelize = new Sequelize(
+    url.pathname.slice(1).split('?')[0],
+    url.username,
+    url.password,
+    {
+      host: url.hostname,
+      port: parseInt(url.port || '5432'),
+      dialect: 'postgres',
+      logging: false,
+      dialectOptions: {
+        ssl: databaseUrl.includes('sslmode=require') ? {
+          require: true,
+          rejectUnauthorized: false,
+        } : false,
+      },
+    }
+  );
+  if (process.env.PUBLIC_DATABASE_URL) {
+    console.log('📡 Using PUBLIC_DATABASE_URL for seeding');
+  }
+} else {
+  // Fallback to default config
+  sequelize = require('../shared/database/config').sequelize;
+}
 
 // Default roles configuration
 const DEFAULT_ROLES = [
