@@ -1,16 +1,48 @@
+# Dependencies
 node_modules
 npm-debug.log
+yarn-error.log
+
+# Build outputs (will be rebuilt in Docker)
+dist
+build
+*.tsbuildinfo
+
+# Environment files
 .env
 .env.local
-.git
-.gitignore
-README.md
+.env.*.local
+
+# IDE
 .vscode
 .idea
-dist
-*.log
-web
-scripts
-docker-compose.yml
-.DS_Store
+*.swp
+*.swo
+*~
 
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Tests
+**/__tests__
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+coverage
+.nyc_output
+
+# Misc
+.DS_Store
+*.log
+.cache
+
+# Railway specific
+.railway

@@ -14,6 +14,7 @@ import { useToast } from '../contexts/ToastContext';
 import { exportDashboardData } from '../utils/export';
 import Card from '../components/Card/Card';
 import Button from '../components/Button/Button';
+import AIChatWidget from '../components/AIChatWidget/AIChatWidget';
 import styles from './Dashboard.module.css';
 
 const Dashboard: React.FC = () => {
@@ -609,10 +610,6 @@ const Dashboard: React.FC = () => {
                 <BookOpen size={20} />
                 <span>Exams</span>
               </Link>
-              <Link to="/ai" className={styles.actionCard}>
-                <Activity size={20} />
-                <span>AI Chat</span>
-              </Link>
               <Link to="/calendar" className={styles.actionCard}>
                 <CalendarDays size={20} />
                 <span>Calendar</span>
@@ -621,6 +618,9 @@ const Dashboard: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* AI Chat Widget - Floating */}
+      <AIChatWidget />
     </div>
   );
 };

@@ -1,6 +1,10 @@
 import { Sequelize } from 'sequelize';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import * as dns from 'dns';
+
+// Force IPv4 resolution (Railway doesn't support IPv6)
+dns.setDefaultResultOrder('ipv4first');
 
 // Load .env from project root
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -33,8 +37,20 @@ let config: {
 if (databaseUrl) {
   // Parse DATABASE_URL (format: postgresql://user:password@host:port/database)
   const url = new URL(databaseUrl);
+  // Extract hostname - if it's an IPv6 address, we'll need to handle it differently
+  // For Supabase, the hostname should be a domain name like db.xxx.supabase.co
+  let hostname = url.hostname;
+  
+  // If hostname is an IPv6 address (contains colons), try to get the domain from the original URL
+  // This shouldn't happen with Supabase URLs, but handle it just in case
+  if (hostname.includes(':') && !hostname.startsWith('[')) {
+    // This is likely an IPv6 address - we need the actual domain
+    // For now, log a warning and use as-is (will fail, but better than silent failure)
+    console.warn('Warning: DATABASE_URL contains IPv6 address. Railway may not support this.');
+  }
+  
   config = {
-    host: url.hostname,
+    host: hostname,
     port: parseInt(url.port || '5432'),
     database: url.pathname.slice(1), // Remove leading '/'
     username: url.username,
@@ -81,18 +97,31 @@ if (databaseUrl) {
 
 // Use DATABASE_URL if available, otherwise use individual config
 export const sequelize = databaseUrl
-  ? new Sequelize(databaseUrl, {
-      dialect: 'postgres',
-      pool: config.pool,
-      logging: config.logging,
-      define: config.define,
-      dialectOptions: {
-        ssl: process.env.DB_SSL === 'true' || process.env.DATABASE_URL?.includes('sslmode=require') ? {
-          require: true,
-          rejectUnauthorized: false,
-        } : false,
-      },
-    })
+  ? new Sequelize(
+      config.database,
+      config.username,
+      config.password,
+      {
+        host: config.host,
+        port: config.port,
+        dialect: 'postgres',
+        pool: config.pool,
+        logging: config.logging,
+        define: config.define,
+        dialectOptions: {
+          ssl: process.env.DB_SSL === 'true' || process.env.DATABASE_URL?.includes('sslmode=require') ? {
+            require: true,
+            rejectUnauthorized: false,
+          } : false,
+          // Force IPv4 resolution to avoid IPv6 connection issues on Railway
+          connectTimeout: 10000,
+        },
+        // Additional options to handle connection issues
+        retry: {
+          max: 3,
+        },
+      }
+    )
   : new Sequelize(
       config.database,
       config.username,
