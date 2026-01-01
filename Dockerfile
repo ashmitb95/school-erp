@@ -65,8 +65,9 @@ RUN echo "Verifying production build..." && \
     fi && \
     echo "✓ Production build verified"
 
-# Copy startup script
+# Copy startup script and migration/seed scripts
 COPY railway-start.sh ./
+COPY scripts ./scripts
 RUN chmod +x railway-start.sh
 
 # Expose port
