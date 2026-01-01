@@ -11,6 +11,9 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { AIMessage } from '../../services/aiService';
 import api from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
+
+// Get API base URL for fetch requests (SSE doesn't work with axios)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 import Button from '../Button/Button';
 import Input from '../Input/Input';
 import Card from '../Card/Card';
@@ -87,7 +90,7 @@ const AIChatWidget: React.FC = () => {
             } catch (e) {}
           }
 
-          const dataResponse = await fetch(`/api/ai/execute-sql`, {
+          const dataResponse = await fetch(`${API_BASE_URL}/ai/execute-sql`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -174,7 +177,7 @@ const AIChatWidget: React.FC = () => {
         content: msg.content,
       }));
 
-      const response = await fetch(`/api/ai/chat/stream`, {
+      const response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
