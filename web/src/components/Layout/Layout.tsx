@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { useHasPermission, useHasRole } from '../../hooks/usePermissions';
 import {
   LayoutDashboard,
   Users,
@@ -18,6 +19,7 @@ import {
   Clock,
   Bus,
   Calendar as CalendarIcon,
+  Shield,
 } from 'lucide-react';
 import styles from './Layout.module.css';
 import Button from '../Button/Button';
@@ -31,21 +33,36 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
 
-  const navItems = [
+  // Permission checks
+  const canViewStudents = useHasPermission('students', 'read');
+  const canViewStaff = useHasPermission('staff', 'read');
+  const canViewTimetable = useHasPermission('timetable', 'read');
+  const canViewTransport = useHasPermission('transport_routes', 'read');
+  const canViewCalendar = useHasPermission('calendar', 'read');
+  const canViewFees = useHasPermission('fees', 'read');
+  const canViewAttendance = useHasPermission('attendance', 'read');
+  const canViewExams = useHasPermission('exams', 'read');
+  const canViewRBAC = useHasPermission('rbac', 'read') || useHasRole('super-admin');
+
+  // Permission-based navigation items
+  const allNavItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/students', icon: Users, label: 'Students' },
-    { path: '/staff', icon: Briefcase, label: 'Staff' },
+    ...(canViewStudents ? [{ path: '/students', icon: Users, label: 'Students' }] : []),
+    ...(canViewStaff ? [{ path: '/staff', icon: Briefcase, label: 'Staff' }] : []),
     { path: '/classes', icon: GraduationCap, label: 'Classes' },
     { path: '/subjects', icon: BookMarked, label: 'Subjects' },
-    { path: '/timetables', icon: Clock, label: 'Timetables' },
-    { path: '/transport', icon: Bus, label: 'Transport' },
-    { path: '/calendar', icon: CalendarIcon, label: 'Calendar' },
-    { path: '/fees', icon: DollarSign, label: 'Fees' },
-    { path: '/attendance', icon: Calendar, label: 'Attendance' },
-    { path: '/exams', icon: BookOpen, label: 'Exams' },
+    ...(canViewTimetable ? [{ path: '/timetables', icon: Clock, label: 'Timetables' }] : []),
+    ...(canViewTransport ? [{ path: '/transport', icon: Bus, label: 'Transport' }] : []),
+    ...(canViewCalendar ? [{ path: '/calendar', icon: CalendarIcon, label: 'Calendar' }] : []),
+    ...(canViewFees ? [{ path: '/fees', icon: DollarSign, label: 'Fees' }] : []),
+    ...(canViewAttendance ? [{ path: '/attendance', icon: Calendar, label: 'Attendance' }] : []),
+    ...(canViewExams ? [{ path: '/exams', icon: BookOpen, label: 'Exams' }] : []),
     { path: '/ai', icon: MessageSquare, label: 'AI Assistant' },
+    ...(canViewRBAC ? [{ path: '/rbac', icon: Shield, label: 'Roles & Permissions' }] : []),
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
+
+  const navItems = allNavItems;
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -103,7 +120,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className={styles.sidebarFooter}>
           <div className={styles.userInfo}>
             <div className={styles.userName}>{user?.name}</div>
-            <div className={styles.userRole}>{user?.role}</div>
+            <div className={styles.userRole}>
+              {(user as any)?.roles?.join(', ') || user?.role || user?.designation}
+            </div>
           </div>
           <Button variant="ghost" size="sm" onClick={logout} icon={<LogOut size={16} />}>
             Logout

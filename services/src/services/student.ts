@@ -5,6 +5,7 @@ import { Op } from 'sequelize';
 import models from '../../../shared/database/models';
 import { paginationSchema } from '../../../shared/utils/validation';
 import { ensureConnected, safeRedisGet, safeRedisSetEx, safeRedisDel } from '../../../shared/utils/redis';
+import { requirePermission } from '../middleware/permissions';
 
 const { Student, Class, School } = models;
 
@@ -40,7 +41,7 @@ const createStudentSchema = z.object({
 });
 
 // Get all students with pagination and filters
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requirePermission('students', 'read'), async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, class_id, academic_year, search } = req.query;
@@ -113,7 +114,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // Get student by ID
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requirePermission('students', 'read'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { school_id } = req.query;
@@ -164,7 +165,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create student
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('students', 'create'), async (req: Request, res: Response) => {
   try {
     const data = createStudentSchema.parse(req.body);
 
@@ -193,7 +194,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Update student
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('students', 'update'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const data = createStudentSchema.partial().parse(req.body);
@@ -243,7 +244,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // Delete student
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('students', 'delete'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { school_id } = req.query;
@@ -282,7 +283,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Get class distribution summary
-router.get('/summary/class-distribution', async (req: Request, res: Response) => {
+router.get('/summary/class-distribution', requirePermission('students', 'read'), async (req: Request, res: Response) => {
   try {
     const { school_id } = req.query;
 

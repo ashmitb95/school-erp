@@ -7,7 +7,7 @@ import models from '../shared/database/models';
 // Load .env from project root
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const { School, Staff } = models;
+const { School, Staff, Role, StaffRole } = models;
 
 async function createAdminUser() {
   try {
@@ -75,6 +75,32 @@ async function createAdminUser() {
       password: passwordHash,
       is_active: true,
     });
+
+    // Assign principal role to admin
+    const principalRole = await Role.findOne({
+      where: { name: 'principal', school_id: school.get('id') as string },
+    });
+    
+    if (principalRole) {
+      // Check if role is already assigned
+      const existingRole = await StaffRole.findOne({
+        where: { staff_id: admin.get('id'), role_id: principalRole.id },
+      });
+      
+      if (!existingRole) {
+        await StaffRole.create({
+          staff_id: admin.get('id') as string,
+          role_id: principalRole.id,
+          assigned_by: admin.get('id') as string,
+          assigned_at: new Date(),
+        });
+        console.log('✅ Principal role assigned to admin');
+      } else {
+        console.log('ℹ️  Principal role already assigned');
+      }
+    } else {
+      console.log('⚠️  Principal role not found. Run seed-rbac-defaults.ts first.');
+    }
 
     console.log('✅ Admin user created successfully!');
     console.log(`   Email: ${admin.get('email')}`);

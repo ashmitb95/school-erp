@@ -13,6 +13,7 @@ import attendanceService from './services/attendance';
 import examService from './services/exam';
 import aiService from './services/ai';
 import managementService from './services/management';
+import rbacService from './services/rbac';
 import { verifyToken } from './middleware/auth';
 
 // Load .env from project root
@@ -66,6 +67,7 @@ app.use('/api/attendance', attendanceService);
 app.use('/api/exam', examService);
 app.use('/api/ai', aiService);
 app.use('/api/management', managementService);
+app.use('/api/rbac', rbacService);
 
 // Error handler
 app.use((error: any, req: Request, res: Response, next: any) => {

@@ -4,8 +4,9 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { sequelize } from '../../../shared/database/config';
 import models from '../../../shared/database/models';
+import { safeRedisDel } from '../../../shared/utils/redis';
 
-const { Staff, School } = models;
+const { Staff, School, StaffRole, Role, RolePermission, Permission } = models;
 
 const router = Router();
 const JWT_SECRET = (process.env.JWT_SECRET || 'your-secret-key') as string;
@@ -45,12 +46,102 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Load user roles and permissions
+    const staffId = String(staff.get('id'));
+    const staffRoles = await StaffRole.findAll({
+      where: { staff_id: staffId },
+      include: [
+        {
+          model: Role,
+          as: 'role',
+          include: [
+            {
+              model: RolePermission,
+              as: 'role_permissions',
+              include: [
+                {
+                  model: Permission,
+                  as: 'permission',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    const roles: string[] = [];
+    const permissions: string[] = [];
+    const permissionSet = new Set<string>();
+
+    for (const staffRole of staffRoles) {
+      const role = staffRole.get('role') as any;
+      if (role) {
+        roles.push(role.name);
+
+        // Check for super-admin wildcard
+        if (role.name === 'super-admin') {
+          permissions.push('*:*');
+        } else {
+          // Collect all permissions for this role
+          const rolePermissions = role.role_permissions || [];
+          for (const rp of rolePermissions) {
+            const permission = rp.get('permission') as any;
+            if (permission) {
+              const permKey = `${permission.resource}:${permission.action}`;
+              if (!permissionSet.has(permKey)) {
+                permissionSet.add(permKey);
+                permissions.push(permKey);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Backward compatibility: If no roles assigned, use designation
+    const designation = String(staff.get('designation'));
+    if (roles.length === 0) {
+      const designationToRole: Record<string, string> = {
+        'Administrator': 'principal',
+        'Teacher': 'teacher',
+        'Principal': 'principal',
+        'Accountant': 'accountant',
+        'Librarian': 'librarian',
+      };
+      const mappedRole = designationToRole[designation] || 'teacher';
+      roles.push(mappedRole);
+      
+      // Get basic permissions based on designation
+      const designationPermissions: Record<string, string[]> = {
+        'Administrator': [
+          'students:create', 'students:read', 'students:update', 'students:delete', 'students:export',
+          'fees:read', 'fees:update', 'fees:approve', 'fees:export',
+          'attendance:read', 'attendance:update', 'attendance:export',
+          'exams:create', 'exams:read', 'exams:update', 'exams:delete', 'exams:export',
+          'staff:read', 'staff:update',
+          'calendar:create', 'calendar:read', 'calendar:update', 'calendar:delete',
+        ],
+        'Teacher': [
+          'students:read',
+          'attendance:create', 'attendance:read', 'attendance:update',
+          'exams:create', 'exams:read', 'exams:update',
+          'exam_results:create', 'exam_results:read', 'exam_results:update',
+          'calendar:read',
+          'timetable:read',
+        ],
+      };
+      permissions.push(...(designationPermissions[designation] || []));
+    }
+
     // Generate JWT token
     const payload = {
-      id: String(staff.get('id')),
+      id: staffId,
       school_id: String(staff.get('school_id')),
       email: String(staff.get('email')),
-      role: String(staff.get('designation')),
+      roles: roles,
+      permissions: permissions,
+      designation: designation, // Legacy field, kept for backward compatibility
     };
     const token = jwt.sign(payload as object, JWT_SECRET as string, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions);
 
@@ -61,7 +152,9 @@ router.post('/login', async (req: Request, res: Response) => {
         school_id: staff.get('school_id'),
         email: staff.get('email'),
         name: `${staff.get('first_name')} ${staff.get('last_name')}`,
-        role: staff.get('designation'),
+        roles: roles,
+        permissions: permissions,
+        designation: designation,
       },
     });
   } catch (error: any) {
@@ -94,12 +187,76 @@ router.get('/verify', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not found or inactive' });
     }
 
+    // Load fresh roles and permissions
+    const staffRoles = await StaffRole.findAll({
+      where: { staff_id: decoded.id },
+      include: [
+        {
+          model: Role,
+          as: 'role',
+          include: [
+            {
+              model: RolePermission,
+              as: 'role_permissions',
+              include: [
+                {
+                  model: Permission,
+                  as: 'permission',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    const roles: string[] = [];
+    const permissions: string[] = [];
+    const permissionSet = new Set<string>();
+
+    for (const staffRole of staffRoles) {
+      const role = staffRole.get('role') as any;
+      if (role) {
+        roles.push(role.name);
+        if (role.name === 'super-admin') {
+          permissions.push('*:*');
+        } else {
+          const rolePermissions = role.role_permissions || [];
+          for (const rp of rolePermissions) {
+            const permission = rp.get('permission') as any;
+            if (permission) {
+              const permKey = `${permission.resource}:${permission.action}`;
+              if (!permissionSet.has(permKey)) {
+                permissionSet.add(permKey);
+                permissions.push(permKey);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Backward compatibility
+    const designation = staff?.get('designation') as string || decoded.designation || '';
+    if (roles.length === 0 && designation) {
+      const designationToRole: Record<string, string> = {
+        'Administrator': 'principal',
+        'Teacher': 'teacher',
+        'Principal': 'principal',
+        'Accountant': 'accountant',
+        'Librarian': 'librarian',
+      };
+      roles.push(designationToRole[designation] || 'teacher');
+    }
+
     res.json({
       user: {
         id: decoded.id,
         school_id: decoded.school_id,
         email: decoded.email,
-        role: decoded.role,
+        roles: roles,
+        permissions: permissions,
+        designation: designation,
       },
     });
   } catch (error: any) {
@@ -110,6 +267,79 @@ router.get('/verify', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Token expired' });
     }
     console.error('Verify error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Refresh permissions endpoint (without re-login)
+router.get('/refresh-permissions', async (req: Request, res: Response) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+    // Invalidate cache
+    await safeRedisDel(`user:${decoded.id}:permissions`);
+
+    // Load fresh roles and permissions
+    const staffRoles = await StaffRole.findAll({
+      where: { staff_id: decoded.id },
+      include: [
+        {
+          model: Role,
+          as: 'role',
+          include: [
+            {
+              model: RolePermission,
+              as: 'role_permissions',
+              include: [
+                {
+                  model: Permission,
+                  as: 'permission',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    const roles: string[] = [];
+    const permissions: string[] = [];
+    const permissionSet = new Set<string>();
+
+    for (const staffRole of staffRoles) {
+      const role = staffRole.get('role') as any;
+      if (role) {
+        roles.push(role.name);
+        if (role.name === 'super-admin') {
+          permissions.push('*:*');
+        } else {
+          const rolePermissions = role.role_permissions || [];
+          for (const rp of rolePermissions) {
+            const permission = rp.get('permission') as any;
+            if (permission) {
+              const permKey = `${permission.resource}:${permission.action}`;
+              if (!permissionSet.has(permKey)) {
+                permissionSet.add(permKey);
+                permissions.push(permKey);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    res.json({
+      roles,
+      permissions,
+    });
+  } catch (error: any) {
+    console.error('Refresh permissions error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -25,4 +25,14 @@ docker-compose.override.yml
 
 documentation/
 
+# Compiled JavaScript (TypeScript source files should be used instead)
+shared/database/**/*.js
+shared/database/**/*.js.map
+shared/utils/**/*.js
+shared/utils/**/*.js.map
+shared/erpnext/**/*.js
+shared/erpnext/**/*.js.map
+services/src/**/*.js
+services/src/**/*.js.map
+
 

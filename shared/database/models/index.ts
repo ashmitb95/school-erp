@@ -15,6 +15,11 @@ import InventoryItem from './InventoryItem';
 import TransportRoute from './TransportRoute';
 import Notification from './Notification';
 import CalendarEvent from './CalendarEvent';
+import Role from './Role';
+import Permission from './Permission';
+import RolePermission from './RolePermission';
+import StaffRole from './StaffRole';
+import User from './User';
 
 // Initialize all models
 const models = {
@@ -34,6 +39,11 @@ const models = {
   TransportRoute,
   Notification,
   CalendarEvent,
+  Role,
+  Permission,
+  RolePermission,
+  StaffRole,
+  User,
 };
 
 // Define associations

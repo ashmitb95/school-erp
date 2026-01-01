@@ -69,6 +69,7 @@ class Staff extends Model<StaffAttributes, StaffCreationAttributes> implements S
   static associate(models: any) {
     Staff.belongsTo(models.School, { foreignKey: 'school_id', as: 'school' });
     Staff.hasMany(models.Class, { foreignKey: 'class_teacher_id', as: 'classes' });
+    Staff.hasMany(models.StaffRole, { foreignKey: 'staff_id', as: 'staff_roles' });
   }
 }
 

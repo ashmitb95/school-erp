@@ -6,6 +6,8 @@ import { Sequelize } from 'sequelize';
 import models from '../shared/database/models';
 import { sequelize } from '../shared/database/config';
 
+const { Role, StaffRole } = models;
+
 // Disable Sequelize query logging for cleaner output
 // Note: Logging is controlled via config, but we can override per query if needed
 
@@ -55,6 +57,28 @@ const SUBJECTS = [
 const BOOK_CATEGORIES = ['Fiction', 'Non-Fiction', 'Textbook', 'Reference', 'Biography', 'Science', 'History', 'Literature'];
 const INVENTORY_CATEGORIES = ['Stationery', 'Furniture', 'Electronics', 'Sports Equipment', 'Lab Equipment', 'Cleaning Supplies', 'Food Items'];
 const VEHICLE_TYPES = ['Bus', 'Van', 'Mini Bus'];
+
+// Helper function to assign role to staff
+async function assignRoleToStaff(
+  staff: any,
+  roleName: string,
+  schoolId: string,
+  assignedBy: string,
+  transaction: any
+) {
+  const role = await Role.findOne({
+    where: { name: roleName, school_id: schoolId },
+    transaction,
+  });
+  if (role) {
+    await StaffRole.create({
+      staff_id: staff.id,
+      role_id: role.id,
+      assigned_by: assignedBy,
+      assigned_at: new Date(),
+    }, { transaction });
+  }
+}
 
 // Helper functions
 function getIndianName(gender: 'male' | 'female'): { first: string; last: string } {
@@ -116,6 +140,15 @@ async function seedDatabase() {
     
     await sequelize.authenticate();
     console.log('✅ Database connection established\n');
+
+    // Check if RBAC defaults are seeded
+    const roleCount = await Role.count({ transaction });
+    if (roleCount === 0) {
+      console.log('⚠️  WARNING: No roles found in database.');
+      console.log('   Please run: npm run seed:rbac (or ts-node scripts/seed-rbac-defaults.ts)');
+      console.log('   before running this seed script.\n');
+      console.log('   Proceeding anyway, but staff will not have roles assigned...\n');
+    }
 
     // Step 1: Clear existing data (preserve admin users)
     process.stdout.write('🗑️  Clearing existing data... ');
@@ -262,6 +295,10 @@ async function seedDatabase() {
       } else {
         await admin.update({ password: passwordHash, is_active: true, school_id: school.id }, { transaction });
       }
+      
+      // Assign principal role to admin
+      await assignRoleToStaff(admin, 'principal', school.id, admin.id, transaction);
+      
       schoolStaff.push(admin);
 
       // Create teachers (2-3 per class)
@@ -295,6 +332,10 @@ async function seedDatabase() {
             password: passwordHash,
             is_active: true,
           }, { transaction, logging: false });
+          
+          // Assign teacher role
+          await assignRoleToStaff(teacher, 'teacher', school.id, admin.id, transaction);
+          
           schoolStaff.push(teacher);
         }
       }

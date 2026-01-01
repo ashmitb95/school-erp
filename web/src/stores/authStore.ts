@@ -7,7 +7,10 @@ interface User {
   school_id: string;
   email: string;
   name: string;
-  role: string;
+  role?: string; // Legacy field
+  roles?: string[]; // New RBAC roles
+  permissions?: string[]; // New RBAC permissions
+  designation?: string; // Legacy field
 }
 
 interface AuthState {

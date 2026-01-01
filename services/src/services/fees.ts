@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { requirePermission } from '../middleware/permissions';
 import { z } from 'zod';
 import crypto from 'crypto';
 import axios from 'axios';
@@ -27,7 +28,7 @@ const createFeeSchema = z.object({
 });
 
 // Get all fees with filters
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requirePermission('fees', 'read'), async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, student_id, status, academic_year } = req.query;
@@ -75,7 +76,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // Create fee
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('fees', 'create'), async (req: Request, res: Response) => {
   try {
     const data = createFeeSchema.parse(req.body);
 
@@ -103,7 +104,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Pay fee
-router.post('/:id/pay', async (req: Request, res: Response) => {
+router.post('/:id/pay', requirePermission('fees', 'pay'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { school_id, payment_method, transaction_id, paid_amount } = z
@@ -173,7 +174,7 @@ router.post('/:id/pay', async (req: Request, res: Response) => {
 });
 
 // Get fee status distribution summary
-router.get('/summary/status-distribution', async (req: Request, res: Response) => {
+router.get('/summary/status-distribution', requirePermission('fees', 'read'), async (req: Request, res: Response) => {
   try {
     const { school_id } = req.query;
 
@@ -233,7 +234,7 @@ router.get('/health', (req: Request, res: Response) => {
 });
 
 // Create Razorpay order (must be before /:id route)
-router.post('/:id/payment/razorpay/create-order', async (req: Request, res: Response) => {
+router.post('/:id/payment/razorpay/create-order', requirePermission('fees', 'pay'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { school_id, amount } = z.object({ 
@@ -303,7 +304,7 @@ router.post('/:id/payment/razorpay/create-order', async (req: Request, res: Resp
 });
 
 // Create Stripe payment intent (must be before /:id route)
-router.post('/:id/payment/stripe/create-intent', async (req: Request, res: Response) => {
+router.post('/:id/payment/stripe/create-intent', requirePermission('fees', 'pay'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { school_id, amount } = z.object({ 
@@ -372,7 +373,7 @@ router.post('/:id/payment/stripe/create-intent', async (req: Request, res: Respo
 });
 
 // Verify payment (must be before /:id route)
-router.post('/:id/payment/verify', async (req: Request, res: Response) => {
+router.post('/:id/payment/verify', requirePermission('fees', 'pay'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { school_id, gateway, payment_id, order_id, signature } = z
@@ -486,7 +487,7 @@ router.post('/:id/payment/verify', async (req: Request, res: Response) => {
 });
 
 // Get fee by ID (public endpoint for payment links)
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requirePermission('fees', 'read'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { token } = req.query;
@@ -537,7 +538,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Generate payment link
-router.post('/:id/payment-link', async (req: Request, res: Response) => {
+router.post('/:id/payment-link', requirePermission('fees', 'create'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const fee = await Fee.findByPk(id, {
@@ -573,7 +574,7 @@ router.post('/:id/payment-link', async (req: Request, res: Response) => {
 });
 
 // Postpone payment (update due date)
-router.patch('/:id/postpone', async (req: Request, res: Response) => {
+router.patch('/:id/postpone', requirePermission('fees', 'update'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { school_id, new_due_date, reason } = z.object({
@@ -611,7 +612,7 @@ router.patch('/:id/postpone', async (req: Request, res: Response) => {
 });
 
 // Send reminder
-router.post('/:id/reminder', async (req: Request, res: Response) => {
+router.post('/:id/reminder', requirePermission('fees', 'update'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { school_id, method } = z.object({

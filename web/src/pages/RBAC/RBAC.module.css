@@ -1,0 +1,349 @@
+.container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--gunmetal);
+  margin: 0 0 0.5rem 0;
+}
+
+.subtitle {
+  color: var(--taupe-grey);
+  margin: 0;
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem;
+  color: var(--taupe-grey);
+}
+
+.rolesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.roleCard {
+  padding: 1.5rem;
+}
+
+.roleHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.roleIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--gunmetal)20;
+  color: var(--gunmetal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.roleInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.roleName {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--gunmetal);
+  margin: 0 0 0.25rem 0;
+  text-transform: capitalize;
+}
+
+.roleSchool {
+  font-size: 0.875rem;
+  color: var(--taupe-grey);
+  margin: 0 0 0.5rem 0;
+}
+
+.systemBadge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-info)20;
+  color: var(--color-info);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.roleDescription {
+  color: var(--taupe-grey);
+  font-size: 0.875rem;
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.roleActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.viewLink {
+  flex: 1;
+  text-align: center;
+  padding: 0.5rem 1rem;
+  background: var(--gunmetal);
+  color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.viewLink:hover {
+  background: var(--gunmetal)dd;
+}
+
+.editBtn,
+.deleteBtn {
+  padding: 0.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.editBtn {
+  background: var(--color-info)20;
+  color: var(--color-info);
+}
+
+.editBtn:hover {
+  background: var(--color-info)30;
+}
+
+.deleteBtn {
+  background: var(--color-error)20;
+  color: var(--color-error);
+}
+
+.deleteBtn:hover {
+  background: var(--color-error)30;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.emptyState svg {
+  margin: 0 auto 1rem;
+  color: var(--taupe-grey);
+}
+
+.emptyState p {
+  color: var(--taupe-grey);
+  margin-bottom: 1.5rem;
+}
+
+/* Role Detail Page */
+.detailContainer {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.detailHeader {
+  margin-bottom: 2rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--gunmetal);
+  text-decoration: none;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.permissionsSection {
+  margin-top: 2rem;
+}
+
+.permissionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.permissionCard {
+  padding: 1rem;
+  border: 1px solid var(--taupe-grey)30;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.permissionInfo {
+  flex: 1;
+}
+
+.permissionKey {
+  font-weight: 600;
+  color: var(--gunmetal);
+  font-size: 0.875rem;
+}
+
+.permissionDesc {
+  font-size: 0.75rem;
+  color: var(--taupe-grey);
+  margin-top: 0.25rem;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+/* Staff Roles Page */
+.staffList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.staffCard {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.staffInfo {
+  flex: 1;
+}
+
+.staffName {
+  font-weight: 600;
+  color: var(--gunmetal);
+  margin-bottom: 0.25rem;
+}
+
+.staffEmail {
+  font-size: 0.875rem;
+  color: var(--taupe-grey);
+}
+
+.staffRoles {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.roleBadge {
+  padding: 0.25rem 0.75rem;
+  background: var(--gunmetal)20;
+  color: var(--gunmetal);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--gunmetal);
+  margin: 0 0 0.5rem 0;
+}
+
+.sectionDescription {
+  color: var(--taupe-grey);
+  margin: 0 0 1rem 0;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal h2 {
+  margin: 0 0 1.5rem 0;
+  color: var(--gunmetal);
+}
+
+.select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--taupe-grey)30;
+  border-radius: 6px;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.modalActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .rolesGrid {
+    grid-template-columns: 1fr;
+  }
+}
+

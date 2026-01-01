@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { requirePermission } from '../middleware/permissions';
 import { z } from 'zod';
 import { Op } from 'sequelize';
 import { sequelize } from '../../../shared/database/config';
@@ -43,7 +44,7 @@ const createStaffSchema = z.object({
 });
 
 // Get all staff
-router.get('/staff', async (req: Request, res: Response) => {
+router.get('/staff', requirePermission('staff', 'read'), async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, designation, department, is_active, search } = req.query;
@@ -96,7 +97,7 @@ router.get('/staff', async (req: Request, res: Response) => {
 });
 
 // Get staff by ID
-router.get('/staff/:id', async (req: Request, res: Response) => {
+router.get('/staff/:id', requirePermission('staff', 'read'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const staff = await Staff.findByPk(id, {
@@ -121,7 +122,7 @@ router.get('/staff/:id', async (req: Request, res: Response) => {
 });
 
 // Create staff
-router.post('/staff', async (req: Request, res: Response) => {
+router.post('/staff', requirePermission('staff', 'create'), async (req: Request, res: Response) => {
   try {
     const data = createStaffSchema.parse(req.body);
     const staffData: any = { ...data, is_active: (data as any).is_active ?? true };
@@ -140,7 +141,7 @@ router.post('/staff', async (req: Request, res: Response) => {
 });
 
 // Update staff
-router.patch('/staff/:id', async (req: Request, res: Response) => {
+router.patch('/staff/:id', requirePermission('staff', 'update'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const staff = await Staff.findByPk(id);
@@ -161,7 +162,7 @@ router.patch('/staff/:id', async (req: Request, res: Response) => {
 });
 
 // Delete staff (soft delete)
-router.delete('/staff/:id', async (req: Request, res: Response) => {
+router.delete('/staff/:id', requirePermission('staff', 'delete'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const staff = await Staff.findByPk(id);
@@ -194,7 +195,7 @@ const createClassSchema = z.object({
 });
 
 // Get all classes
-router.get('/classes', async (req: Request, res: Response) => {
+router.get('/classes', requirePermission('students', 'read'), async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, academic_year, is_active } = req.query;
@@ -257,7 +258,7 @@ router.get('/classes', async (req: Request, res: Response) => {
 });
 
 // Get class by ID
-router.get('/classes/:id', async (req: Request, res: Response) => {
+router.get('/classes/:id', requirePermission('students', 'read'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const cls = await Class.findByPk(id, {
@@ -283,7 +284,7 @@ router.get('/classes/:id', async (req: Request, res: Response) => {
 });
 
 // Create class
-router.post('/classes', async (req: Request, res: Response) => {
+router.post('/classes', requirePermission('students', 'create'), async (req: Request, res: Response) => {
   try {
     const data = createClassSchema.parse(req.body);
     const classData: any = { ...data, is_active: (data as any).is_active ?? true, section: (data as any).section ?? null };
@@ -302,7 +303,7 @@ router.post('/classes', async (req: Request, res: Response) => {
 });
 
 // Update class
-router.patch('/classes/:id', async (req: Request, res: Response) => {
+router.patch('/classes/:id', requirePermission('students', 'update'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const cls = await Class.findByPk(id);
@@ -323,7 +324,7 @@ router.patch('/classes/:id', async (req: Request, res: Response) => {
 });
 
 // Delete class (soft delete)
-router.delete('/classes/:id', async (req: Request, res: Response) => {
+router.delete('/classes/:id', requirePermission('students', 'delete'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const cls = await Class.findByPk(id);
@@ -353,7 +354,7 @@ const createSubjectSchema = z.object({
 });
 
 // Get all subjects
-router.get('/subjects', async (req: Request, res: Response) => {
+router.get('/subjects', requirePermission('exams', 'read'), async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, is_active, search } = req.query;
@@ -402,7 +403,7 @@ router.get('/subjects', async (req: Request, res: Response) => {
 });
 
 // Get subject by ID
-router.get('/subjects/:id', async (req: Request, res: Response) => {
+router.get('/subjects/:id', requirePermission('exams', 'read'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const subject = await Subject.findByPk(id, {
@@ -424,7 +425,7 @@ router.get('/subjects/:id', async (req: Request, res: Response) => {
 });
 
 // Create subject
-router.post('/subjects', async (req: Request, res: Response) => {
+router.post('/subjects', requirePermission('exams', 'create'), async (req: Request, res: Response) => {
   try {
     const data = createSubjectSchema.parse(req.body);
     const subjectData: any = { ...data, is_active: (data as any).is_active ?? true };
@@ -443,7 +444,7 @@ router.post('/subjects', async (req: Request, res: Response) => {
 });
 
 // Update subject
-router.patch('/subjects/:id', async (req: Request, res: Response) => {
+router.patch('/subjects/:id', requirePermission('exams', 'update'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const subject = await Subject.findByPk(id);
@@ -464,7 +465,7 @@ router.patch('/subjects/:id', async (req: Request, res: Response) => {
 });
 
 // Delete subject (soft delete)
-router.delete('/subjects/:id', async (req: Request, res: Response) => {
+router.delete('/subjects/:id', requirePermission('exams', 'delete'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const subject = await Subject.findByPk(id);
@@ -500,7 +501,7 @@ const createTimetableSchema = z.object({
 });
 
 // Get timetables
-router.get('/timetables', async (req: Request, res: Response) => {
+router.get('/timetables', requirePermission('timetable', 'read'), async (req: Request, res: Response) => {
   try {
     const { school_id, class_id, teacher_id, academic_year, day_of_week } = req.query;
 
@@ -558,7 +559,7 @@ router.get('/timetables', async (req: Request, res: Response) => {
 });
 
 // Get timetable by class
-router.get('/timetables/class/:classId', async (req: Request, res: Response) => {
+router.get('/timetables/class/:classId', requirePermission('timetable', 'read'), async (req: Request, res: Response) => {
   try {
     const { classId } = req.params;
     const { academic_year } = req.query;
@@ -586,7 +587,7 @@ router.get('/timetables/class/:classId', async (req: Request, res: Response) => 
 });
 
 // Create timetable
-router.post('/timetables', async (req: Request, res: Response) => {
+router.post('/timetables', requirePermission('timetable', 'create'), async (req: Request, res: Response) => {
   try {
     const data = createTimetableSchema.parse(req.body);
     const timetableData: any = { ...data, is_active: (data as any).is_active ?? true };
@@ -605,7 +606,7 @@ router.post('/timetables', async (req: Request, res: Response) => {
 });
 
 // Update timetable
-router.patch('/timetables/:id', async (req: Request, res: Response) => {
+router.patch('/timetables/:id', requirePermission('timetable', 'update'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const timetable = await Timetable.findByPk(id);
@@ -626,7 +627,7 @@ router.patch('/timetables/:id', async (req: Request, res: Response) => {
 });
 
 // Delete timetable
-router.delete('/timetables/:id', async (req: Request, res: Response) => {
+router.delete('/timetables/:id', requirePermission('timetable', 'delete'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const timetable = await Timetable.findByPk(id);
@@ -664,7 +665,7 @@ const createTransportRouteSchema = z.object({
 });
 
 // Get all transport routes
-router.get('/transport-routes', async (req: Request, res: Response) => {
+router.get('/transport-routes', requirePermission('transport_routes', 'read'), async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, is_active, search } = req.query;
@@ -728,7 +729,7 @@ router.get('/transport-routes', async (req: Request, res: Response) => {
 });
 
 // Get transport route by ID
-router.get('/transport-routes/:id', async (req: Request, res: Response) => {
+router.get('/transport-routes/:id', requirePermission('transport_routes', 'read'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const route = await TransportRoute.findByPk(id, {
@@ -754,7 +755,7 @@ router.get('/transport-routes/:id', async (req: Request, res: Response) => {
 });
 
 // Create transport route
-router.post('/transport-routes', async (req: Request, res: Response) => {
+router.post('/transport-routes', requirePermission('transport_routes', 'create'), async (req: Request, res: Response) => {
   try {
     const data = createTransportRouteSchema.parse(req.body);
     const routeData: any = { ...data, is_active: (data as any).is_active ?? true };
@@ -773,7 +774,7 @@ router.post('/transport-routes', async (req: Request, res: Response) => {
 });
 
 // Update transport route
-router.patch('/transport-routes/:id', async (req: Request, res: Response) => {
+router.patch('/transport-routes/:id', requirePermission('transport_routes', 'update'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const route = await TransportRoute.findByPk(id);
@@ -794,7 +795,7 @@ router.patch('/transport-routes/:id', async (req: Request, res: Response) => {
 });
 
 // Delete transport route (soft delete)
-router.delete('/transport-routes/:id', async (req: Request, res: Response) => {
+router.delete('/transport-routes/:id', requirePermission('transport_routes', 'delete'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const route = await TransportRoute.findByPk(id);

@@ -21,6 +21,9 @@ import ExamDetail from './pages/Exams/ExamDetail';
 import AIChat from './pages/AIChat';
 import Settings from './pages/Settings';
 import Payment from './pages/Payment/Payment';
+import Roles from './pages/RBAC/Roles';
+import RoleDetail from './pages/RBAC/RoleDetail';
+import StaffRoles from './pages/RBAC/StaffRoles';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
@@ -67,6 +70,10 @@ const App: React.FC = () => {
                         <Route path="/exams" element={<Exams />} />
                         <Route path="/exams/:id" element={<ExamDetail />} />
                         <Route path="/ai" element={<AIChat />} />
+                        <Route path="/rbac" element={<Roles />} />
+                        <Route path="/rbac/roles" element={<Roles />} />
+                        <Route path="/rbac/roles/:id" element={<RoleDetail />} />
+                        <Route path="/rbac/staff/:id" element={<StaffRoles />} />
                         <Route path="/settings" element={<Settings />} />
                       </Routes>
               </Layout>

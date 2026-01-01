@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { requirePermission } from '../middleware/permissions';
 import { z } from 'zod';
 import { sequelize } from '../../../shared/database/config';
 import models from '../../../shared/database/models';
@@ -39,7 +40,7 @@ const createExamResultSchema = z.object({
 });
 
 // Get all exams
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requirePermission('exams', 'read'), async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, class_id, academic_year, exam_type, status } = req.query;
@@ -88,7 +89,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // Create exam
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('exams', 'create'), async (req: Request, res: Response) => {
   try {
     const data = createExamSchema.parse(req.body);
 
@@ -114,7 +115,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Get exam by ID
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requirePermission('exams', 'read'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -136,7 +137,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Add exam result
-router.post('/:id/results', async (req: Request, res: Response) => {
+router.post('/:id/results', requirePermission('exam_results', 'create'), async (req: Request, res: Response) => {
   try {
     const { id: exam_id } = req.params;
     const data = createExamResultSchema.parse({ ...req.body, exam_id });
@@ -167,7 +168,7 @@ router.post('/:id/results', async (req: Request, res: Response) => {
 });
 
 // Get exam results
-router.get('/:id/results', async (req: Request, res: Response) => {
+router.get('/:id/results', requirePermission('exam_results', 'read'), async (req: Request, res: Response) => {
   try {
     const { id: exam_id } = req.params;
     const { page, limit } = paginationSchema.parse(req.query);

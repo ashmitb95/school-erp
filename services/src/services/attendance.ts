@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { requirePermission } from '../middleware/permissions';
 import { z } from 'zod';
 import { sequelize } from '../../../shared/database/config';
 import { Op, fn, col } from 'sequelize';
@@ -25,7 +26,7 @@ const markAttendanceSchema = z.object({
 });
 
 // Mark attendance
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('attendance', 'create'), async (req: Request, res: Response) => {
   try {
     const data = markAttendanceSchema.parse(req.body);
 
@@ -62,7 +63,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Bulk mark attendance
-router.post('/bulk', async (req: Request, res: Response) => {
+router.post('/bulk', requirePermission('attendance', 'create'), async (req: Request, res: Response) => {
   try {
     const { class_id, date, attendances, marked_by } = z
       .object({
@@ -119,7 +120,7 @@ router.post('/bulk', async (req: Request, res: Response) => {
 });
 
 // Get attendance with filters
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requirePermission('attendance', 'read'), async (req: Request, res: Response) => {
   try {
     const { page, limit } = paginationSchema.parse(req.query);
     const { school_id, student_id, class_id, date, start_date, end_date, status, leave_type } = req.query;
@@ -175,7 +176,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // Get attendance statistics
-router.get('/stats', async (req: Request, res: Response) => {
+router.get('/stats', requirePermission('attendance', 'read'), async (req: Request, res: Response) => {
   try {
     const { school_id, student_id, class_id, start_date, end_date } = req.query;
 

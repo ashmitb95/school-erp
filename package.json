@@ -17,6 +17,7 @@
     "migrate": "npm run migrate:check && ts-node --transpile-only shared/database/migrate.ts",
     "migrate:check": "echo '🔍 Checking TypeScript compilation...' && npx tsc --noEmit --skipLibCheck shared/database/config.ts shared/database/models/*.ts 2>&1 && echo '✅ TypeScript compilation successful!' || (echo '❌ TypeScript compilation failed! Fix errors before running migrations.' && exit 1)",
     "seed": "ts-node --transpile-only scripts/seed-database.ts",
+    "seed:rbac": "ts-node --transpile-only scripts/seed-rbac-defaults.ts",
     "seed:metrics": "ts-node --transpile-only scripts/seed-today-metrics.ts",
     "test": "jest",
     "lint": "eslint . --ext .ts,.js"
