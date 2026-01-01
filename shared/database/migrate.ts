@@ -1,39 +1,24 @@
-import { Sequelize } from 'sequelize';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
-import models from './models';
 
-// Load .env from project root
+// Load .env from project root FIRST
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // For migrations, prefer PUBLIC_DATABASE_URL (Railway public connection) if available
-// Otherwise fall back to DATABASE_URL
-const databaseUrl = process.env.PUBLIC_DATABASE_URL || process.env.DATABASE_URL;
-
-// Create a temporary sequelize instance for migrations if using public URL
-let sequelize = require('./config').sequelize;
-
-// If PUBLIC_DATABASE_URL is set, create a new connection for migrations
-if (process.env.PUBLIC_DATABASE_URL && process.env.PUBLIC_DATABASE_URL !== process.env.DATABASE_URL) {
-  const url = new URL(process.env.PUBLIC_DATABASE_URL);
-  sequelize = new Sequelize(
-    url.pathname.slice(1).split('?')[0],
-    url.username,
-    url.password,
-    {
-      host: url.hostname,
-      port: parseInt(url.port || '5432'),
-      dialect: 'postgres',
-      logging: false,
-      dialectOptions: {
-        ssl: process.env.PUBLIC_DATABASE_URL?.includes('sslmode=require') ? {
-          require: true,
-          rejectUnauthorized: false,
-        } : false,
-      },
-    }
-  );
+// Temporarily override DATABASE_URL so models use the public connection
+const originalDatabaseUrl = process.env.DATABASE_URL;
+if (process.env.PUBLIC_DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.PUBLIC_DATABASE_URL;
   console.log('📡 Using PUBLIC_DATABASE_URL for migrations');
+}
+
+// Now import models - they will use the DATABASE_URL we just set
+import models from './models';
+import { sequelize } from './config';
+
+// Restore original DATABASE_URL if we changed it
+if (originalDatabaseUrl && process.env.PUBLIC_DATABASE_URL) {
+  process.env.DATABASE_URL = originalDatabaseUrl;
 }
 
 /**
@@ -54,6 +39,13 @@ async function migrate() {
     const modelNames = Object.keys(models);
     console.log(`Loaded ${modelNames.length} models: ${modelNames.join(', ')}`);
 
+    // Verify RBAC models are loaded
+    if (!models.Role || !models.Permission || !models.RolePermission || !models.StaffRole) {
+      console.error('❌ RBAC models not found! Available models:', modelNames);
+      throw new Error('RBAC models (Role, Permission, RolePermission, StaffRole) are not loaded');
+    }
+    console.log('✅ RBAC models verified: Role, Permission, RolePermission, StaffRole, User');
+
     // Sync all models (creates tables if they don't exist)
     console.log('Syncing database schema...');
     await sequelize.sync({ alter: false, force: false });
@@ -65,6 +57,16 @@ async function migrate() {
     const queryInterface = sequelize.getQueryInterface();
     const tables = await queryInterface.showAllTables();
     console.log(`\nCreated tables: ${tables.join(', ')}`);
+    
+    // Verify RBAC tables were created
+    const requiredTables = ['permissions', 'roles', 'role_permissions', 'staff_roles', 'users'];
+    const missingTables = requiredTables.filter(t => !tables.includes(t));
+    if (missingTables.length > 0) {
+      console.error(`\n⚠️  WARNING: Missing RBAC tables: ${missingTables.join(', ')}`);
+      console.error('   This may indicate an issue with model initialization.');
+    } else {
+      console.log('\n✅ All RBAC tables verified: permissions, roles, role_permissions, staff_roles, users');
+    }
 
     process.exit(0);
   } catch (error) {

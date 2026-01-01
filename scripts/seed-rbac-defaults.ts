@@ -1,41 +1,28 @@
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { Sequelize } from 'sequelize';
-import models from '../shared/database/models';
 
-// Load .env from project root
+// Load .env from project root FIRST, before importing models
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // For migrations/seeds, prefer PUBLIC_DATABASE_URL (Railway public connection) if available
+// Temporarily override DATABASE_URL so models use the public connection
+const originalDatabaseUrl = process.env.DATABASE_URL;
 const databaseUrl = process.env.PUBLIC_DATABASE_URL || process.env.DATABASE_URL;
 
-// Create sequelize instance for migrations
-let sequelize: Sequelize;
-if (databaseUrl) {
-  const url = new URL(databaseUrl);
-  sequelize = new Sequelize(
-    url.pathname.slice(1).split('?')[0],
-    url.username,
-    url.password,
-    {
-      host: url.hostname,
-      port: parseInt(url.port || '5432'),
-      dialect: 'postgres',
-      logging: false,
-      dialectOptions: {
-        ssl: databaseUrl.includes('sslmode=require') ? {
-          require: true,
-          rejectUnauthorized: false,
-        } : false,
-      },
-    }
-  );
-  if (process.env.PUBLIC_DATABASE_URL) {
-    console.log('📡 Using PUBLIC_DATABASE_URL for seeding');
-  }
-} else {
-  // Fallback to default config
-  sequelize = require('../shared/database/config').sequelize;
+if (process.env.PUBLIC_DATABASE_URL) {
+  // Temporarily set DATABASE_URL to PUBLIC_DATABASE_URL so models use it
+  process.env.DATABASE_URL = process.env.PUBLIC_DATABASE_URL;
+  console.log('📡 Using PUBLIC_DATABASE_URL for seeding');
+}
+
+// Now import models - they will use the DATABASE_URL we just set
+import models from '../shared/database/models';
+import { sequelize } from '../shared/database/config';
+
+// Restore original DATABASE_URL if we changed it
+if (originalDatabaseUrl && process.env.PUBLIC_DATABASE_URL) {
+  process.env.DATABASE_URL = originalDatabaseUrl;
 }
 
 // Default roles configuration
@@ -276,10 +263,26 @@ async function seedRBACDefaults() {
     
     await sequelize.authenticate();
     console.log('✅ Database connection established\n');
-    
-    // Ensure models are initialized by syncing
-    await sequelize.sync({ alter: false });
-    console.log('✅ Models initialized\n');
+
+    // Verify tables exist - migrations should have created them
+    console.log('🔍 Verifying RBAC tables exist...');
+    try {
+      await sequelize.query('SELECT 1 FROM permissions LIMIT 1');
+      await sequelize.query('SELECT 1 FROM roles LIMIT 1');
+      await sequelize.query('SELECT 1 FROM role_permissions LIMIT 1');
+      await sequelize.query('SELECT 1 FROM staff_roles LIMIT 1');
+      console.log('✅ RBAC tables verified\n');
+    } catch (error: any) {
+      console.error('❌ RBAC tables not found!');
+      console.error('   Error:', error.message);
+      console.error('\n💡 Please run migrations first:');
+      console.error('   railway run npm run migrate');
+      console.error('\n   Or if tables should exist, check:');
+      console.error('   1. Did migrations run successfully?');
+      console.error('   2. Are you connected to the correct database?');
+      console.error('   3. Check Railway logs for migration errors');
+      throw new Error('RBAC tables do not exist. Run migrations first: railway run npm run migrate');
+    }
     
     // Access models - same pattern as seed-database.ts
     const { Role, Permission, RolePermission, School } = models;
