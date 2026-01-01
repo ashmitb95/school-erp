@@ -30,4 +30,16 @@
   cursor: pointer;
 }
 
+/* Mobile responsive */
+@media (max-width: 639px) {
+  .card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    margin: 0 !important;
+    padding-left: var(--spacing-md) !important;
+    padding-right: var(--spacing-md) !important;
+  }
+}
+
 

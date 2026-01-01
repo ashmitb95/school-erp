@@ -37,6 +37,19 @@ function FitBounds({ points }: { points: [number, number][] }) {
     return null;
 }
 
+// Component to invalidate map size when container is ready
+function MapInvalidateSize() {
+    const map = useMap();
+    React.useEffect(() => {
+        // Invalidate size after a short delay to ensure container is rendered
+        const timer = setTimeout(() => {
+            map.invalidateSize();
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [map]);
+    return null;
+}
+
 const TransportRoutes: React.FC = () => {
     const { user } = useAuthStore();
     const schoolId = user?.school_id;
@@ -447,6 +460,7 @@ const TransportRoutes: React.FC = () => {
                     <div className={styles.mapContainer}>
                         {routeCoordinates && routeCoordinates.allPoints.length > 0 ? (
                             <MapContainer
+                                key={`map-${routeDetail.id}-${routeCoordinates.allPoints.length}`}
                                 center={routeCoordinates.start as [number, number]}
                                 zoom={12}
                                 style={{ height: '100%', width: '100%', borderRadius: 'var(--radius-md)' }}
@@ -455,6 +469,7 @@ const TransportRoutes: React.FC = () => {
                                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 />
+                                <MapInvalidateSize />
                                 <FitBounds points={routeCoordinates.allPoints} />
 
                                 {/* Start marker */}

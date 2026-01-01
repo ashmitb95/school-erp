@@ -2,6 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xl);
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .header {
@@ -170,6 +176,17 @@
   .header {
     flex-direction: column;
     gap: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+    align-items: stretch;
+  }
+
+  .header > div:last-child {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
   }
 
   .title {
@@ -228,13 +245,30 @@
   }
 
   .tableCard {
-    margin: 0 calc(-1 * var(--spacing-sm));
+    margin: 0;
     padding: 0;
-    border-radius: 0;
+    border-radius: var(--radius-md);
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .tableCard :global(.ag-theme-alpine) {
     height: 500px !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .tableCard :global(.ag-root-wrapper) {
+    overflow: hidden !important;
+    width: 100% !important;
+  }
+
+  .tableCard :global(.ag-body-viewport) {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
   }
 
   .pagination {
@@ -246,6 +280,11 @@
   .pagination span {
     font-size: 0.875rem;
     text-align: center;
+    word-wrap: break-word;
+  }
+
+  .pagination button {
+    width: 100%;
   }
 }
 

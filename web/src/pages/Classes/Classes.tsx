@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
@@ -23,6 +23,15 @@ const Classes: React.FC = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [academicYearFilter, setAcademicYearFilter] = useState('all');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const { data, isLoading } = useQuery(
     ['classes', schoolId, page, search, academicYearFilter],
@@ -57,142 +66,150 @@ const Classes: React.FC = () => {
   );
 
   const columnDefs: ColDef[] = useMemo(() => [
-    {
-      headerName: 'Class Name',
-      field: 'name',
-      width: 150,
-      pinned: 'left',
-      cellRenderer: (params: ICellRendererParams) => (
-        <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
-          {params.value}
-        </div>
-      ),
-    },
-    {
-      headerName: 'Code',
-      field: 'code',
-      width: 100,
-    },
-    {
-      headerName: 'Level',
-      field: 'level',
-      width: 100,
-      cellRenderer: (params: ICellRendererParams) => (
-        <span>Grade {params.value}</span>
-      ),
-    },
-    {
-      headerName: 'Academic Year',
-      field: 'academic_year',
-      width: 150,
-    },
-    {
-      headerName: 'Class Teacher',
-      field: 'class_teacher',
-      width: 200,
-      cellRenderer: (params: ICellRendererParams) => {
-        const teacher = params.value;
-        if (!teacher) return <span style={{ color: 'var(--color-text-secondary)' }}>Not Assigned</span>;
-        return (
-          <div>
-            <div style={{ fontWeight: 600 }}>
-              {teacher.first_name} {teacher.last_name}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-              {teacher.employee_id}
-            </div>
+      {
+        headerName: 'Class Name',
+        field: 'name',
+        width: isMobile ? 120 : 150,
+        pinned: 'left',
+        cellRenderer: (params: ICellRendererParams) => (
+          <div style={{ fontWeight: 600, color: 'var(--color-primary)', fontSize: isMobile ? '0.875rem' : '1rem' }}>
+            {params.value}
           </div>
-        );
+        ),
       },
-    },
-    {
-      headerName: 'Students',
-      field: 'student_count',
-      width: 120,
-      cellRenderer: (params: ICellRendererParams) => (
-        <div style={{ fontWeight: 600, color: 'var(--color-info)' }}>
-          {params.value || 0}
-        </div>
-      ),
-    },
-    {
-      headerName: 'Capacity',
-      field: 'capacity',
-      width: 100,
-      cellRenderer: (params: ICellRendererParams) => {
-        const capacity = params.value;
-        const studentCount = params.data.student_count || 0;
-        const percentage = capacity > 0 ? (studentCount / capacity) * 100 : 0;
-        const color = percentage >= 90 ? 'var(--color-error)' : percentage >= 75 ? 'var(--color-warning)' : 'var(--color-success)';
-        return (
-          <div>
-            <span style={{ fontWeight: 600, color }}>{studentCount}/{capacity}</span>
-            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-              {percentage.toFixed(0)}%
+      {
+        headerName: 'Code',
+        field: 'code',
+        width: isMobile ? 80 : 100,
+        hide: isMobile,
+      },
+      {
+        headerName: 'Level',
+        field: 'level',
+        width: isMobile ? 80 : 100,
+        cellRenderer: (params: ICellRendererParams) => (
+          <span style={{ fontSize: isMobile ? '0.875rem' : '1rem' }}>Grade {params.value}</span>
+        ),
+      },
+      {
+        headerName: 'Academic Year',
+        field: 'academic_year',
+        width: isMobile ? 100 : 150,
+        hide: isMobile,
+      },
+      {
+        headerName: 'Class Teacher',
+        field: 'class_teacher',
+        width: isMobile ? 150 : 200,
+        cellRenderer: (params: ICellRendererParams) => {
+          const teacher = params.value;
+          if (!teacher) return <span style={{ color: 'var(--color-text-secondary)', fontSize: isMobile ? '0.75rem' : '0.875rem' }}>Not Assigned</span>;
+          return (
+            <div>
+              <div style={{ fontWeight: 600, fontSize: isMobile ? '0.875rem' : '1rem' }}>
+                {teacher.first_name} {teacher.last_name}
+              </div>
+              {!isMobile && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                  {teacher.employee_id}
+                </div>
+              )}
             </div>
-          </div>
-        );
+          );
+        },
       },
-    },
-    {
-      headerName: 'Status',
-      field: 'is_active',
-      width: 100,
-      cellRenderer: (params: ICellRendererParams) => {
-        const isActive = params.value;
-        return (
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '0.25rem 0.5rem',
-            borderRadius: 'var(--radius-sm)',
-            backgroundColor: isActive ? 'var(--color-success)20' : 'var(--color-error)20',
-            color: isActive ? 'var(--color-success)' : 'var(--color-error)',
-            fontWeight: 600,
-            fontSize: '0.75rem',
-          }}>
-            {isActive ? 'Active' : 'Inactive'}
+      {
+        headerName: 'Students',
+        field: 'student_count',
+        width: isMobile ? 80 : 120,
+        cellRenderer: (params: ICellRendererParams) => (
+          <div style={{ fontWeight: 600, color: 'var(--color-info)', fontSize: isMobile ? '0.875rem' : '1rem' }}>
+            {params.value || 0}
           </div>
-        );
+        ),
       },
-    },
-    {
-      headerName: 'Actions',
-      field: 'actions',
-      width: 60,
-      pinned: 'right',
-      cellRenderer: (params: ICellRendererParams) => (
-        <button
-          onClick={() => navigate(`/classes/${params.data.id}`)}
-          style={{
-            padding: '0.375rem',
-            border: '1px solid var(--color-border)',
-            background: 'transparent',
-            color: 'var(--color-text-secondary)',
-            borderRadius: 'var(--radius-sm)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-primary)';
-            e.currentTarget.style.color = 'var(--color-primary)';
-            e.currentTarget.style.backgroundColor = 'var(--color-primary)10';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-border)';
-            e.currentTarget.style.color = 'var(--color-text-secondary)';
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-          title="View Details"
-        >
-          <Eye size={16} strokeWidth={1.5} />
-        </button>
-      ),
-    },
-  ], [navigate]);
+      {
+        headerName: 'Capacity',
+        field: 'capacity',
+        width: isMobile ? 90 : 100,
+        cellRenderer: (params: ICellRendererParams) => {
+          const capacity = params.value;
+          const studentCount = params.data.student_count || 0;
+          const percentage = capacity > 0 ? (studentCount / capacity) * 100 : 0;
+          const color = percentage >= 90 ? 'var(--color-error)' : percentage >= 75 ? 'var(--color-warning)' : 'var(--color-success)';
+          return (
+            <div>
+              <span style={{ fontWeight: 600, color, fontSize: isMobile ? '0.875rem' : '1rem' }}>{studentCount}/{capacity}</span>
+              {!isMobile && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                  {percentage.toFixed(0)}%
+                </div>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        headerName: 'Status',
+        field: 'is_active',
+        width: isMobile ? 80 : 100,
+        cellRenderer: (params: ICellRendererParams) => {
+          const isActive = params.value;
+          return (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: isMobile ? '0.25rem' : '0.25rem 0.5rem',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: isActive ? 'var(--color-success)20' : 'var(--color-error)20',
+              color: isActive ? 'var(--color-success)' : 'var(--color-error)',
+              fontWeight: 600,
+              fontSize: isMobile ? '0.7rem' : '0.75rem',
+            }}>
+              {isActive ? 'Active' : 'Inactive'}
+            </div>
+          );
+        },
+      },
+      {
+        headerName: 'Actions',
+        field: 'actions',
+        width: isMobile ? 50 : 60,
+        pinned: 'right',
+        cellRenderer: (params: ICellRendererParams) => (
+          <button
+            onClick={() => navigate(`/classes/${params.data.id}`)}
+            style={{
+              padding: isMobile ? '0.5rem' : '0.375rem',
+              border: '1px solid var(--color-border)',
+              background: 'transparent',
+              color: 'var(--color-text-secondary)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+              minWidth: isMobile ? '44px' : 'auto',
+              minHeight: isMobile ? '44px' : 'auto',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-primary)';
+              e.currentTarget.style.color = 'var(--color-primary)';
+              e.currentTarget.style.backgroundColor = 'var(--color-primary)10';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            title="View Details"
+          >
+            <Eye size={isMobile ? 18 : 16} strokeWidth={1.5} />
+          </button>
+        ),
+      },
+  ], [navigate, isMobile]);
 
   const defaultColDef = useMemo(() => ({
     sortable: true,

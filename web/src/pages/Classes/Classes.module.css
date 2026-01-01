@@ -2,6 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xl);
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  align-items: stretch;
+  box-sizing: border-box;
 }
 
 .header {
@@ -126,33 +132,73 @@
 @media (max-width: 639px) {
   .container {
     gap: var(--spacing-md);
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    align-items: stretch;
   }
 
   .header {
     flex-direction: column;
     gap: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+    align-items: stretch;
+  }
+
+  .header > div:first-child {
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .header > div:last-child {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    align-self: stretch;
+  }
+
+  .header > div:last-child button {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .title {
     font-size: 1.5rem;
+    word-wrap: break-word;
   }
 
   .subtitle {
     font-size: 0.875rem;
+    word-wrap: break-word;
   }
 
   .analyticsGrid {
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
+    width: 100%;
+    margin: 0;
+    padding: 0;
   }
 
   .analyticsCard {
     padding: var(--spacing-md);
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    align-self: stretch;
   }
 
   .analyticsIcon {
-    width: 3rem;
-    height: 3rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
   }
 
   .analyticsValue {
@@ -161,43 +207,105 @@
 
   .filters {
     gap: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .searchBar {
     max-width: 100%;
     width: 100%;
+    box-sizing: border-box;
   }
 
   .yearFilters {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: var(--spacing-xs);
+    width: 100%;
   }
 
   .yearFilter {
-    width: 100%;
-    padding: var(--spacing-md);
-    font-size: 0.9375rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.875rem;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .tableCard {
-    margin: 0 calc(-1 * var(--spacing-sm));
+    width: 100%;
+    margin: 0;
     padding: 0;
-    border-radius: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
   .tableCard :global(.ag-theme-alpine) {
     height: 500px !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .tableCard :global(.ag-root-wrapper) {
+    overflow: hidden !important;
+    width: 100% !important;
+  }
+
+  .tableCard :global(.ag-body-viewport) {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+  }
+
+  .tableCard :global(.ag-header-viewport) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+  }
+
+  .tableCard :global(.ag-center-cols-container) {
+    min-width: 100%;
+  }
+
+  .tableCard :global(.ag-cell) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: var(--spacing-sm) !important;
+  }
+
+  .tableCard :global(.ag-header-cell) {
+    padding: var(--spacing-sm) !important;
+  }
+
+  .tableCard :global(.ag-header-cell-text) {
+    font-size: 0.75rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .pagination {
     flex-direction: column;
     gap: var(--spacing-sm);
     margin-top: var(--spacing-md);
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .pagination span {
     font-size: 0.875rem;
     text-align: center;
+    word-wrap: break-word;
+  }
+
+  .pagination button {
+    width: 100%;
   }
 }
 

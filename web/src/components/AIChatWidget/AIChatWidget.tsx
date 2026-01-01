@@ -49,6 +49,7 @@ const AIChatWidget: React.FC = () => {
       totalStudents: students.data.pagination?.total || 0,
       pendingFees: pendingFees.data.pagination?.total || 0,
       absentCount: parseInt(absentCount),
+      school_id: schoolId,
     };
   }, {
     enabled: !!schoolId,
@@ -180,7 +181,7 @@ const AIChatWidget: React.FC = () => {
 
       // Ensure school_id is in context
       const contextWithSchoolId = {
-        ...(context || {}),
+        ...(context || { totalStudents: 0, pendingFees: 0, absentCount: 0 }),
         school_id: schoolId || context?.school_id,
       };
 
@@ -651,7 +652,7 @@ const AIChatWidget: React.FC = () => {
                               <span>Results ({message.dataCount || message.data.length} rows)</span>
                             </div>
                             <div className={styles.dataTable}>
-                              <div className="ag-theme-alpine" style={{ width: '100%', height: '300px' }}>
+                              <div className="ag-theme-alpine" style={{ width: '100%', height: '300px', maxHeight: '300px', overflow: 'hidden' }}>
                                 <AgGridReact
                                   columnDefs={generateColumnDefs(message.data)}
                                   rowData={message.data}

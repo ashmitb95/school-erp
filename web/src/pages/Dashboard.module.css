@@ -6,6 +6,9 @@
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  align-items: stretch;
 }
 
 .header {
@@ -519,44 +522,71 @@
 @media (max-width: 639px) {
   .dashboard {
     gap: var(--spacing-md);
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    align-items: stretch;
   }
 
   .header {
     flex-direction: column;
     margin-bottom: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+    align-items: stretch;
+  }
+
+  .header > div:first-child {
+    width: 100%;
+    align-self: stretch;
   }
 
   .title {
     font-size: 1.5rem;
+    word-wrap: break-word;
   }
 
   .subtitle {
     font-size: 0.875rem;
+    word-wrap: break-word;
   }
 
   .statsGrid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: var(--spacing-sm);
+    width: 100%;
+    margin: 0;
+    padding: 0;
   }
 
   .statCard {
     padding: var(--spacing-md);
     gap: var(--spacing-sm);
-    flex-direction: column;
-    text-align: center;
+    min-height: auto;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    align-self: stretch;
   }
 
   .statIcon {
     width: 2.5rem;
     height: 2.5rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
   }
 
   .statValue {
     font-size: 1.5rem;
+    word-wrap: break-word;
   }
 
   .statTitle {
     font-size: 0.75rem;
+    word-wrap: break-word;
   }
 
   .statTrend {
@@ -566,63 +596,242 @@
   .mainGrid {
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .leftColumn,
+  .rightColumn {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    align-items: stretch;
   }
 
   .section {
     padding: var(--spacing-md);
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .alertSection {
     padding: var(--spacing-md);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .sectionHeader {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
   }
 
   .sectionTitle {
     font-size: 1rem;
+    word-wrap: break-word;
+  }
+
+  .sectionDesc {
+    font-size: 0.8125rem;
+    word-wrap: break-word;
+  }
+
+  .studentList {
+    width: 100%;
   }
 
   .studentItem {
     padding: var(--spacing-sm);
-    flex-wrap: wrap;
     gap: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+    flex-wrap: nowrap;
+    overflow: hidden;
   }
 
   .studentAvatar {
     width: 2rem;
     height: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
     font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .studentInfo {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .studentName {
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .studentMeta {
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .issuesBadges {
     width: 100%;
     margin-top: var(--spacing-xs);
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+  }
+
+  .issueBadge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    white-space: nowrap;
+  }
+
+  .scoreBadge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .contactActions {
+    flex-shrink: 0;
+  }
+
+  .contactBtn {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .feeItem {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .feeInfo {
+    width: 100%;
+  }
+
+  .feeName {
+    font-size: 0.8125rem;
+    word-wrap: break-word;
+  }
+
+  .feeMeta {
+    font-size: 0.7rem;
+    word-wrap: break-word;
   }
 
   .feeAmount {
     text-align: left;
     display: flex;
-    gap: var(--spacing-md);
-    align-items: center;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .amount {
+    font-size: 0.875rem;
+  }
+
+  .overdue {
+    font-size: 0.7rem;
+  }
+
+  .birthdayItem {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .birthdayAvatar {
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
+    flex-shrink: 0;
+  }
+
+  .birthdayInfo {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .birthdayName {
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .birthdayClass {
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .birthdayDate {
+    font-size: 0.7rem;
+    flex-shrink: 0;
   }
 
   .actionsGrid {
     grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+    width: 100%;
   }
 
   .actionCard {
-    padding: var(--spacing-sm);
+    padding: var(--spacing-md);
     font-size: 0.75rem;
+    min-height: 60px;
   }
 
   .attendanceStats {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-xs);
+    padding-top: var(--spacing-sm);
+  }
+
+  .attendanceStat {
+    font-size: 0.8125rem;
+    width: 100%;
+  }
+
+  .emptyState {
+    padding: var(--spacing-lg);
+  }
+
+  .emptyState p {
+    font-size: 0.8125rem;
+  }
+
+  /* Chart container responsive */
+  .section > div[style*="height"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Ensure all section content is contained */
+  .section > * {
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
 

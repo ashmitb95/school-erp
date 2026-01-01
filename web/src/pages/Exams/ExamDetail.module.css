@@ -2,6 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xl);
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .backLink {
@@ -154,16 +160,45 @@
 }
 
 @media (max-width: 640px) {
+  .container {
+    gap: var(--spacing-md);
+  }
+
   .header {
     flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .subtitle {
+    font-size: 0.875rem;
   }
 
   .infoGrid {
     grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
   }
 
   .chartsGrid {
     grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .chartCard {
+    padding: var(--spacing-md);
+    width: 100%;
+    box-sizing: border-box;
   }
 }
 
