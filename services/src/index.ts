@@ -22,9 +22,12 @@ const app = express();
 const PORT = process.env.PORT || process.env.API_GATEWAY_PORT || 3000;
 
 // Middleware
+// CORS configuration - allow all origins (you can restrict this later if needed)
 app.use(cors({
-  origin: true,
+  origin: true, // Allow all origins
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 }));
 app.use(express.json());
 

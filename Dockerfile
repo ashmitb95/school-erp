@@ -31,8 +31,8 @@ RUN echo "Building shared package..." && \
 RUN echo "Building server..." && \
     cd services && \
     npm run build && \
-    if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then \
-    echo "ERROR: Server build failed - no dist directory or empty" && \
+    if [ ! -f "dist/services/src/index.js" ]; then \
+    echo "ERROR: Server build failed - dist/services/src/index.js not found" && \
     exit 1; \
     fi && \
     echo "✓ Server built successfully" && \
@@ -59,8 +59,8 @@ RUN echo "Verifying production build..." && \
     echo "ERROR: Shared dist missing or empty!" && \
     exit 1; \
     fi && \
-    if [ ! -d "services/dist" ] || [ -z "$(ls -A services/dist 2>/dev/null)" ]; then \
-    echo "ERROR: Server dist missing or empty!" && \
+    if [ ! -f "services/dist/services/src/index.js" ]; then \
+    echo "ERROR: Server dist/services/src/index.js missing!" && \
     exit 1; \
     fi && \
     echo "✓ Production build verified"
