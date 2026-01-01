@@ -228,7 +228,7 @@ const Attendance: React.FC = () => {
         <Card className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Attendance Distribution</h3>
           <div style={{ height: '300px' }}>
-            <AgChartsReact options={chartOptions} />
+            <AgChartsReact options={chartOptions as any} />
           </div>
         </Card>
       )}
@@ -312,7 +312,6 @@ const Attendance: React.FC = () => {
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               pagination={false}
-              loading={false}
               animateRows={true}
               enableCellTextSelection={true}
               suppressCellFocus={true}

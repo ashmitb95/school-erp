@@ -31,13 +31,22 @@ const Button: React.FC<ButtonProps> = ({
     .filter(Boolean)
     .join(' ');
 
+  // Exclude props that conflict with framer-motion
+  const {
+    onAnimationStart,
+    onDragStart,
+    onDrag,
+    onDragEnd,
+    ...buttonProps
+  } = props;
+
   return (
     <motion.button
       className={buttonClasses}
       disabled={disabled || loading}
       whileHover={{ scale: disabled || loading ? 1 : 1.02 }}
       whileTap={{ scale: disabled || loading ? 1 : 0.98 }}
-      {...props}
+      {...(buttonProps as any)}
     >
       {loading ? (
         <span className={styles.spinner} />

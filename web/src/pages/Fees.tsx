@@ -20,6 +20,7 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 const Fees: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const { showSuccess, showError, showWarning, confirm } = useToast();
   const schoolId = user?.school_id;
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
@@ -591,7 +592,6 @@ const Fees: React.FC = () => {
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               pagination={false}
-              loading={false}
               animateRows={true}
               enableCellTextSelection={true}
               suppressCellFocus={true}

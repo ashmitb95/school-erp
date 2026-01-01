@@ -6,6 +6,8 @@ import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgChartsReact } from 'ag-charts-react';
 import { ArrowLeft, BookOpen, Calendar, TrendingUp, BarChart3, PieChart, Download } from 'lucide-react';
 import api from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
+import { exportToCSV } from '../../utils/export';
 import Card from '../../components/Card/Card';
 import Button from '../../components/Button/Button';
 import TableSkeleton from '../../components/TableSkeleton/TableSkeleton';
@@ -454,7 +456,6 @@ const ExamDetail: React.FC = () => {
                             defaultColDef={defaultColDef}
                             pagination={true}
                             paginationPageSize={20}
-                            loading={false}
                             animateRows={true}
                             enableCellTextSelection={true}
                             suppressCellFocus={true}

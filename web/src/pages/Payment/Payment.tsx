@@ -204,12 +204,11 @@ const Payment: React.FC = () => {
     // Use Stripe's redirect to checkout for simplicity
     // In production, you might want to use Stripe Elements for inline payment
     try {
+      // Note: This is a placeholder - in production, use Stripe Elements to collect card details
+      // For now, we'll skip the card payment confirmation
       const { error: stripeError } = await stripe.confirmCardPayment(intentData.client_secret, {
         payment_method: {
-          card: {
-            // For now, we'll use a redirect approach
-            // In a full implementation, you'd use Stripe Elements to collect card details
-          },
+          card: {} as any, // Placeholder - should use Stripe Elements in production
         },
       });
 

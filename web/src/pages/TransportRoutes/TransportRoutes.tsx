@@ -404,7 +404,6 @@ const TransportRoutes: React.FC = () => {
                                     columnDefs={columnDefs}
                                     defaultColDef={defaultColDef}
                                     pagination={false}
-                                    loading={false}
                                     animateRows={true}
                                     enableCellTextSelection={true}
                                     suppressCellFocus={true}

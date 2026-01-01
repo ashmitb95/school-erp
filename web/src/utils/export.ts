@@ -74,7 +74,7 @@ function escapeCSVValue(value: any): string {
 /**
  * Export dashboard data
  */
-export function exportDashboardData(stats: any, data: any): void {
+export function exportDashboardData(stats: any, _data: any): void {
   const columns = [
     { key: 'metric', label: 'Metric' },
     { key: 'value', label: 'Value' },

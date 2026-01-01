@@ -22,7 +22,7 @@ const Exams: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const schoolId = user?.school_id;
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -421,7 +421,6 @@ const Exams: React.FC = () => {
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               pagination={false}
-              loading={false}
               animateRows={true}
               enableCellTextSelection={true}
               suppressCellFocus={true}

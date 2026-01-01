@@ -22,7 +22,7 @@ const Students: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const { showSuccess, showError, confirm } = useToast();
+  const { showSuccess, showError, showInfo, confirm } = useToast();
   const schoolId = user?.school_id;
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -347,7 +347,6 @@ const Students: React.FC = () => {
               pagination={false}
               rowSelection="multiple"
               onSelectionChanged={onSelectionChanged}
-              loading={false}
               animateRows={true}
               enableCellTextSelection={true}
               suppressCellFocus={true}
