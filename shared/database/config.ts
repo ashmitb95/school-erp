@@ -37,22 +37,21 @@ let config: {
 if (databaseUrl) {
   // Parse DATABASE_URL (format: postgresql://user:password@host:port/database)
   const url = new URL(databaseUrl);
-  // Extract hostname - if it's an IPv6 address, we'll need to handle it differently
-  // For Supabase, the hostname should be a domain name like db.xxx.supabase.co
   let hostname = url.hostname;
+  let port = parseInt(url.port || '5432');
   
-  // If hostname is an IPv6 address (contains colons), try to get the domain from the original URL
-  // This shouldn't happen with Supabase URLs, but handle it just in case
-  if (hostname.includes(':') && !hostname.startsWith('[')) {
-    // This is likely an IPv6 address - we need the actual domain
-    // For now, log a warning and use as-is (will fail, but better than silent failure)
-    console.warn('Warning: DATABASE_URL contains IPv6 address. Railway may not support this.');
+  // For Supabase: If using direct connection (port 5432), suggest using pooler (port 6543)
+  // The pooler has better IPv4 support and works better with Railway
+  if (hostname.includes('.supabase.co') && port === 5432) {
+    console.warn('⚠️  Using Supabase direct connection (port 5432).');
+    console.warn('💡 TIP: Use Supabase connection pooler (port 6543) for better IPv4 support on Railway.');
+    console.warn('   Change your DATABASE_URL to use port 6543 instead of 5432');
   }
   
   config = {
     host: hostname,
-    port: parseInt(url.port || '5432'),
-    database: url.pathname.slice(1), // Remove leading '/'
+    port: port,
+    database: url.pathname.slice(1).split('?')[0], // Remove leading '/' and query params
     username: url.username,
     password: url.password,
     pool: {
