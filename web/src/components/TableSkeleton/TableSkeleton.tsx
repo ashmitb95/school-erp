@@ -31,3 +31,4 @@ const TableSkeleton: React.FC<TableSkeletonProps> = ({ rows = 10, columns = 6 })
 
 export default TableSkeleton;
 
+

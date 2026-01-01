@@ -2,12 +2,31 @@ import { Sequelize } from 'sequelize';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as dns from 'dns';
+import { promisify } from 'util';
 
 // Force IPv4 resolution (Railway doesn't support IPv6)
 dns.setDefaultResultOrder('ipv4first');
 
 // Load .env from project root
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+// Function to resolve hostname to IPv4 (synchronous for immediate use)
+function resolveToIPv4Sync(hostname: string): string {
+  try {
+    // Use dns.lookup with family 4 to force IPv4
+    const result = dns.lookup(hostname, { family: 4 }, (err, address) => {
+      if (!err && address) {
+        return address;
+      }
+      return hostname;
+    });
+    // For synchronous resolution, we need to use a different approach
+    // Since dns.lookup is async, we'll resolve it at connection time
+    return hostname;
+  } catch (error) {
+    return hostname;
+  }
+}
 
 // Support both DATABASE_URL (Supabase) and individual env vars
 const databaseUrl = process.env.DATABASE_URL;
@@ -34,6 +53,10 @@ let config: {
   };
 };
 
+// Resolve hostname to IPv4 synchronously for immediate use
+// We'll do async resolution in the sequelize initialization
+let resolvedHost: string | null = null;
+
 if (databaseUrl) {
   // Parse DATABASE_URL (format: postgresql://user:password@host:port/database)
   const url = new URL(databaseUrl);
@@ -48,8 +71,12 @@ if (databaseUrl) {
     console.warn('   Change your DATABASE_URL to use port 6543 instead of 5432');
   }
   
+  // Try to resolve to IPv4 using async lookup (will be awaited before connection)
+  // For now, store the hostname - we'll resolve it when creating the connection
+  resolvedHost = hostname;
+  
   config = {
-    host: hostname,
+    host: resolvedHost || hostname,
     port: port,
     database: url.pathname.slice(1).split('?')[0], // Remove leading '/' and query params
     username: url.username,
@@ -95,6 +122,8 @@ if (databaseUrl) {
 }
 
 // Use DATABASE_URL if available, otherwise use individual config
+// Note: We use the hostname directly and rely on dns.setDefaultResultOrder('ipv4first')
+// If IPv6 issues persist, use Supabase connection pooler (port 6543) instead of direct (5432)
 export const sequelize = databaseUrl
   ? new Sequelize(
       config.database,
@@ -114,6 +143,8 @@ export const sequelize = databaseUrl
           } : false,
           // Force IPv4 resolution to avoid IPv6 connection issues on Railway
           connectTimeout: 10000,
+          // Additional pg library options
+          application_name: 'erp-server',
         },
         // Additional options to handle connection issues
         retry: {

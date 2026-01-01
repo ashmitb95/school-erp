@@ -52,3 +52,4 @@ const ToastComponent: React.FC<ToastProps> = ({ toast, onClose }) => {
 
 export default ToastComponent;
 
+

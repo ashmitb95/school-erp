@@ -20,3 +20,4 @@ const TableWrapper: React.FC<TableWrapperProps> = ({ children, className = '' })
 
 export default TableWrapper;
 
+

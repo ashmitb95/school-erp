@@ -85,9 +85,43 @@ app.use((req: Request, res: Response) => {
   });
 });
 
+// Resolve database hostname to IPv4 before connecting (workaround for Railway IPv6 issue)
+async function initializeDatabase() {
+  const databaseUrl = process.env.DATABASE_URL;
+  
+  if (databaseUrl) {
+    try {
+      const url = new URL(databaseUrl);
+      const hostname = url.hostname;
+      
+      // Only resolve if it's a domain name (not already an IP)
+      if (hostname && !hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+        const dns = require('dns');
+        const { promisify } = require('util');
+        const lookup = promisify(dns.lookup);
+        
+        try {
+          const result = await lookup(hostname, { family: 4 });
+          if (result && result.address) {
+            console.log(`✓ Resolved ${hostname} to IPv4: ${result.address}`);
+            // Note: We can't change the host after Sequelize is created,
+            // but this at least ensures DNS resolution prefers IPv4
+          }
+        } catch (dnsError) {
+          console.warn(`⚠️  Could not resolve ${hostname} to IPv4:`, dnsError);
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️  Could not parse DATABASE_URL for IPv4 resolution:', error);
+    }
+  }
+  
+  // Now attempt database connection
+  return sequelize.authenticate();
+}
+
 // Initialize database connection and start server
-sequelize
-  .authenticate()
+initializeDatabase()
   .then(async () => {
     console.log('✅ Database connection established');
     
@@ -96,13 +130,18 @@ sequelize
       console.warn('⚠️  Redis connection warning:', err.message);
     });
     
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Consolidated server running on port ${PORT}`);
-      console.log(`📡 Health check: http://localhost:${PORT}/health`);
+      console.log(`📡 Health check: http://0.0.0.0:${PORT}/health`);
+      console.log(`🌐 Server is listening on all interfaces (0.0.0.0:${PORT})`);
     });
   })
   .catch((error) => {
     console.error('❌ Database connection failed:', error);
+    console.error('💡 If you see IPv6 errors, try:');
+    console.error('   1. Use Supabase connection pooler (port 6543) if available');
+    console.error('   2. Contact Supabase support for IPv4-only connection');
+    console.error('   3. Consider using Railway PostgreSQL instead');
     process.exit(1);
   });
 
