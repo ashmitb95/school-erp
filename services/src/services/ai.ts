@@ -498,7 +498,7 @@ Return ONLY the JSON, no other text.`;
         });
       } catch (error: any) {
         return res.json({
-          response: `Error executing query after ${maxRetries} attempts: ${error.message || 'Database error'}`,
+          response: `Error executing query after 3 attempts: ${error.message || 'Database error'}`,
           type: 'error'
         });
       }

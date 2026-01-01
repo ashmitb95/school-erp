@@ -183,7 +183,7 @@ const StaffRoles: React.FC = () => {
 
       {showAssignModal && (
         <div className={styles.modalOverlay} onClick={() => setShowAssignModal(false)}>
-          <Card className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} onClick={(e: React.MouseEvent) => { e.stopPropagation(); }}>
             <h2>Assign Role</h2>
             <select
               value={selectedRoleId}
@@ -205,7 +205,7 @@ const StaffRoles: React.FC = () => {
                 Assign
               </Button>
             </div>
-          </Card>
+          </div>
         </div>
       )}
     </div>
