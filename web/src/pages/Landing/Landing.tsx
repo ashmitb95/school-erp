@@ -78,7 +78,7 @@ const Landing: React.FC = () => {
               <span className={styles.heroTitleHighlight}> with AI</span>
             </h1>
             <p className={styles.heroDescription}>
-              The all-in-one ERP system that helps you manage students, fees, attendance, 
+              The all-in-one ERP system that helps you manage students, fees, attendance,
               transport, and more. Ask questions in natural language and get instant insights.
             </p>
             <div className={styles.heroActions}>
@@ -208,7 +208,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className={styles.pricing}>
+      {/* <section id="pricing" className={styles.pricing}>
         <div className={styles.container}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -265,7 +265,7 @@ const Landing: React.FC = () => {
             />
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* CTA Section */}
       <section className={styles.cta}>
