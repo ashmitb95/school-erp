@@ -40,6 +40,33 @@
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--color-primary);
+  flex-wrap: wrap;
+}
+
+.logoImage {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+  max-width: 300px;
+}
+
+.brandmarkBadge {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  margin-left: var(--spacing-xs);
+}
+
+.brandmarkBadgeLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--transition-base);
+}
+
+.brandmarkBadgeLink:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
 }
 
 .navLinks {
@@ -48,14 +75,18 @@
   gap: var(--spacing-lg);
 }
 
-.navLinks a {
+.navLinks > a {
   text-decoration: none;
   color: var(--color-text);
   font-weight: 500;
   transition: color var(--transition-base);
+  display: inline-flex;
+  align-items: center;
+  height: fit-content;
+  line-height: 1.5;
 }
 
-.navLinks a:hover {
+.navLinks > a:hover {
   color: var(--color-primary);
 }
 
@@ -148,7 +179,9 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  font-size: 1.125rem;
+  min-height: 3.25rem;
   background: transparent;
   border: 2px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -529,10 +562,14 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--color-primary);
   margin-bottom: var(--spacing-sm);
+}
+
+.footerLogoImage {
+  height: 80px;
+  width: auto;
+  object-fit: contain;
+  max-width: 300px;
 }
 
 .footerDescription {
@@ -564,6 +601,27 @@
   text-align: center;
   color: var(--color-text-secondary);
   font-size: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.brandmarkBranding {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.brandmarkLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color var(--transition-base);
+}
+
+.brandmarkLink:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
 }
 
 /* Responsive Design */

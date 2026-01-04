@@ -77,6 +77,69 @@
   cursor: pointer;
 }
 
+.sectionDescription {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.6;
+}
+
+.warningBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--color-warning)15;
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  color: var(--color-warning);
+  font-size: 0.875rem;
+  margin-bottom: var(--spacing-lg);
+}
+
+.locationMapContainer {
+  width: 100%;
+  margin-bottom: var(--spacing-lg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.locationMapContainer :global(.leaflet-container) {
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+}
+
+.locationInfo {
+  display: flex;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.locationInfoItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.locationInfoItem strong {
+  color: var(--color-text);
+  margin-right: var(--spacing-xs);
+}
+
+.locationActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+}
+
 @media (max-width: 640px) {
   .container {
     gap: var(--spacing-md);

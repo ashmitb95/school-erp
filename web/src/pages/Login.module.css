@@ -25,20 +25,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 4rem;
-  height: 4rem;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-  border-radius: var(--radius-lg);
   margin-bottom: var(--spacing-lg);
-  color: white;
+  width: 100%;
 }
 
-.title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin-bottom: var(--spacing-sm);
+.logoImage {
+  height: 100px;
+  width: auto;
+  object-fit: contain;
+  max-width: 400px;
 }
+
 
 .subtitle {
   color: var(--color-text-secondary);
@@ -127,8 +124,26 @@
 .footer {
   margin-top: var(--spacing-xl);
   text-align: center;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
   font-size: 0.75rem;
+}
+
+.brandmarkBranding {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.brandmarkLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color var(--transition-base);
+}
+
+.brandmarkLink:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
 }
 
 /* Mobile styles */

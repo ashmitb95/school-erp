@@ -83,14 +83,41 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         >
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
-        <h1 className={styles.mobileTitle}>Praxis ERP</h1>
+        <div className={styles.mobileTitleContainer}>
+          <div className={styles.mobileLogo}>
+            <img
+              src="/praxis.png"
+              alt="Praxis ERP Logo"
+              className={styles.mobileLogoImage}
+            />
+          </div>
+          <span className={styles.mobileBrandmarkBadge}>
+            by{' '}
+            <a
+              href="https://www.thebrandmark.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.mobileBrandmarkLink}
+            >
+              thebrandmark.in
+            </a>
+          </span>
+        </div>
         <div className={styles.mobileUser}>{user?.name?.split(' ')[0] || 'User'}</div>
       </header>
 
       {/* Sidebar */}
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.sidebarHeader}>
-          <h2 className={styles.logo}>Praxis ERP</h2>
+          <div className={styles.logoContainer}>
+            <div className={styles.logoWithIcon}>
+              <img
+                src="/praxis.png"
+                alt="Praxis ERP Logo"
+                className={styles.sidebarLogoImage}
+              />
+            </div>
+          </div>
           <button
             className={styles.closeButton}
             onClick={() => setSidebarOpen(false)}
@@ -127,6 +154,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Button variant="ghost" size="sm" onClick={logout} icon={<LogOut size={16} />}>
             Logout
           </Button>
+          <div className={styles.brandmarkBranding}>
+            <a
+              href="https://www.thebrandmark.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.brandmarkLink}
+            >
+              Product of thebrandmark.in
+            </a>
+          </div>
         </div>
       </aside>
 

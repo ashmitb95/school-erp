@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { Mail, Lock, Sparkles, Building2 } from 'lucide-react';
+import { Mail, Lock, Building2 } from 'lucide-react';
 import Input from '../components/Input/Input';
 import Button from '../components/Button/Button';
 import styles from './Login.module.css';
@@ -57,9 +57,12 @@ const Login: React.FC = () => {
       <div className={styles.card}>
         <div className={styles.header}>
           <div className={styles.logo}>
-            <Sparkles size={32} />
+            <img
+              src="/praxis.png"
+              alt="Praxis ERP Logo"
+              className={styles.logoImage}
+            />
           </div>
-          <h1 className={styles.title}>Praxis ERP</h1>
           <p className={styles.subtitle}>AI-Powered Education Management</p>
         </div>
 
@@ -122,7 +125,17 @@ const Login: React.FC = () => {
         </form>
 
         <div className={styles.footer}>
-          <p>Powered by AI • Secure & Fast</p>
+          <p className={styles.brandmarkBranding}>
+            Product of{' '}
+            <a
+              href="https://www.thebrandmark.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.brandmarkLink}
+            >
+              thebrandmark.in
+            </a>
+          </p>
         </div>
       </div>
     </div>

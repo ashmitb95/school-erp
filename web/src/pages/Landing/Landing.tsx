@@ -32,13 +32,15 @@ const Landing: React.FC = () => {
       <nav className={styles.nav}>
         <div className={styles.navContainer}>
           <div className={styles.logo}>
-            <Sparkles size={28} />
-            <span>Praxis ERP</span>
+            <img
+              src="/praxis.png"
+              alt="Praxis ERP Logo"
+              className={styles.logoImage}
+            />
           </div>
           <div className={`${styles.navLinks} ${mobileMenuOpen ? styles.navLinksOpen : ''}`}>
             <a href="#features" onClick={() => setMobileMenuOpen(false)}>Features</a>
             <a href="#demo" onClick={() => setMobileMenuOpen(false)}>Demo</a>
-            <a href="#pricing" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
             <Link to="/login">
               <Button variant="outline" size="sm">Sign In</Button>
             </Link>
@@ -84,7 +86,7 @@ const Landing: React.FC = () => {
             <div className={styles.heroActions}>
               <Link to="/login">
                 <Button size="lg" icon={<ArrowRight size={20} />}>
-                  Start Free Trial
+                  Explore Praxis for Schools
                 </Button>
               </Link>
               <button className={styles.heroWatchButton} onClick={scrollToFeatures}>
@@ -282,7 +284,7 @@ const Landing: React.FC = () => {
             </p>
             <Link to="/login">
               <Button size="lg" icon={<ArrowRight size={20} />}>
-                Start Your Free Trial
+                Explore Praxis for Schools
               </Button>
             </Link>
           </motion.div>
@@ -295,8 +297,11 @@ const Landing: React.FC = () => {
           <div className={styles.footerContent}>
             <div className={styles.footerSection}>
               <div className={styles.footerLogo}>
-                <Sparkles size={24} />
-                <span>Praxis ERP</span>
+                <img
+                  src="/praxis.png"
+                  alt="Praxis ERP Logo"
+                  className={styles.footerLogoImage}
+                />
               </div>
               <p className={styles.footerDescription}>
                 The modern ERP system for modern schools
@@ -306,7 +311,6 @@ const Landing: React.FC = () => {
               <h4 className={styles.footerTitle}>Product</h4>
               <a href="#features">Features</a>
               <a href="#demo">Demo</a>
-              <a href="#pricing">Pricing</a>
             </div>
             <div className={styles.footerSection}>
               <h4 className={styles.footerTitle}>Company</h4>
@@ -323,6 +327,17 @@ const Landing: React.FC = () => {
           </div>
           <div className={styles.footerBottom}>
             <p>&copy; 2024 Praxis ERP. All rights reserved.</p>
+            <p className={styles.brandmarkBranding}>
+              Product of{' '}
+              <a
+                href="https://www.thebrandmark.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.brandmarkLink}
+              >
+                thebrandmark.in
+              </a>
+            </p>
           </div>
         </div>
       </footer>
@@ -475,4 +490,3 @@ const featureList = [
 ];
 
 export default Landing;
-
