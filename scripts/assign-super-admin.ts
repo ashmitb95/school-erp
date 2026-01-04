@@ -1,41 +1,24 @@
 import * as dotenv from 'dotenv';
 import * as path from 'path';
-import { Sequelize } from 'sequelize';
-import models from '../shared/database/models';
 
-// Load .env from project root
+// Load .env from project root FIRST
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // For migrations, prefer PUBLIC_DATABASE_URL (Railway public connection) if available
-const databaseUrl = process.env.PUBLIC_DATABASE_URL || process.env.DATABASE_URL;
+// Temporarily override DATABASE_URL so models use the public connection
+const originalDatabaseUrl = process.env.DATABASE_URL;
+if (process.env.PUBLIC_DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.PUBLIC_DATABASE_URL;
+  console.log('📡 Using PUBLIC_DATABASE_URL');
+}
 
-// Create sequelize instance for migrations
-let sequelize: Sequelize;
-if (databaseUrl) {
-  const url = new URL(databaseUrl);
-  sequelize = new Sequelize(
-    url.pathname.slice(1).split('?')[0],
-    url.username,
-    url.password,
-    {
-      host: url.hostname,
-      port: parseInt(url.port || '5432'),
-      dialect: 'postgres',
-      logging: false,
-      dialectOptions: {
-        ssl: databaseUrl.includes('sslmode=require') ? {
-          require: true,
-          rejectUnauthorized: false,
-        } : false,
-      },
-    }
-  );
-  if (process.env.PUBLIC_DATABASE_URL) {
-    console.log('📡 Using PUBLIC_DATABASE_URL');
-  }
-} else {
-  // Fallback to default config
-  sequelize = require('../shared/database/config').sequelize;
+// Now import models - they will use the DATABASE_URL we just set
+import models from '../shared/database/models';
+import { sequelize } from '../shared/database/config';
+
+// Restore original DATABASE_URL if we changed it
+if (originalDatabaseUrl && process.env.PUBLIC_DATABASE_URL) {
+  process.env.DATABASE_URL = originalDatabaseUrl;
 }
 
 const { Role, StaffRole, Staff } = models;

@@ -815,6 +815,58 @@ router.delete('/transport-routes/:id', requirePermission('transport_routes', 'de
   }
 });
 
+// ==================== SCHOOL ENDPOINTS ====================
+
+// Get school by ID
+router.get('/schools/:id', requirePermission('students', 'read'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const school = await School.findByPk(id);
+
+    if (!school) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    res.json(school);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Get school error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
+// Update school
+router.put('/schools/:id', requirePermission('students', 'update'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const school = await School.findByPk(id);
+
+    if (!school) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    // Handle settings update - merge with existing settings
+    if (req.body.settings) {
+      const currentSettings = school.settings || {};
+      req.body.settings = {
+        ...currentSettings,
+        ...req.body.settings,
+      };
+    }
+
+    await school.update(req.body);
+    res.json(school);
+  } catch (error: any) {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorStack = error?.stack;
+    console.error('Update school error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+  }
+});
+
 // Health check
 router.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'management' });

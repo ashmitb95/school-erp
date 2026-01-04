@@ -13,6 +13,7 @@ import ClassDetail from './pages/Classes/ClassDetail';
 import Subjects from './pages/Subjects/Subjects';
 import Timetables from './pages/Timetables/Timetables';
 import TransportRoutes from './pages/TransportRoutes/TransportRoutes';
+import CreateRoute from './pages/TransportRoutes/CreateRoute';
 import Calendar from './pages/Calendar/Calendar';
 import Fees from './pages/Fees';
 import Attendance from './pages/Attendance';
@@ -64,6 +65,8 @@ const App: React.FC = () => {
                         <Route path="/subjects" element={<Subjects />} />
                         <Route path="/timetables" element={<Timetables />} />
                         <Route path="/transport" element={<TransportRoutes />} />
+                        <Route path="/transport/create" element={<CreateRoute />} />
+                        <Route path="/transport/edit/:id" element={<CreateRoute />} />
                         <Route path="/calendar" element={<Calendar />} />
                         <Route path="/fees" element={<Fees />} />
                         <Route path="/attendance" element={<Attendance />} />

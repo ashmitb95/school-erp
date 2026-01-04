@@ -103,7 +103,10 @@ Create a `.env` file in the `web` directory:
 
 ```env
 VITE_API_URL=http://localhost:3000
+VITE_OSRM_URL=http://localhost:5000  # Optional: Your own OSRM instance (defaults to public demo server)
 ```
+
+**Note**: The public OSRM demo server has rate limits. For production, set up your own OSRM instance. See [OSRM_SETUP.md](./OSRM_SETUP.md) for instructions.
 
 ## Development
 
